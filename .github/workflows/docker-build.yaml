@@ -1,4 +1,4 @@
-name: '[CI] Build and Push Docker Images'
+name: 'Build and Push Docker Image'
 
 on:
   push:
@@ -14,21 +14,13 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-permissions:
-  contents: read
-  packages: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build-go-apps:
-    name: Build Go Applications Docker Images
+  build-and-push:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [daemon, runner, cli]
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -56,176 +48,21 @@ jobs:
             type=semver,pattern={{major}}
             type=sha,prefix={{branch}}-
 
-      - name: Create Dockerfile for ${{ matrix.app }}
-        run: |
-          cat > apps/${{ matrix.app }}/Dockerfile << 'EOF'
-          # Multi-stage build for Go application
-          FROM golang:1.23.4-alpine AS builder
-          
-          # Install git and ca-certificates
-          RUN apk add --no-cache git ca-certificates
-          
-          # Set working directory
-          WORKDIR /app
-          
-          # Copy all go.mod and go.sum files to satisfy go.work dependencies
-          COPY go.work go.work.sum ./
-          COPY apps/cli/go.mod apps/cli/go.sum apps/cli/
-          COPY apps/daemon/go.mod apps/daemon/go.sum apps/daemon/
-          COPY apps/runner/go.mod apps/runner/go.sum apps/runner/
-          COPY libs/api-client-go/go.mod libs/api-client-go/go.sum libs/api-client-go/
-          
-          # Download dependencies
-          RUN go mod download
-          
-          # Copy source code for the target app and shared libraries
-          COPY apps/${{ matrix.app }}/ apps/${{ matrix.app }}/
-          COPY libs/api-client-go/ libs/api-client-go/
-          
-          # Build the application
-          WORKDIR /app/apps/${{ matrix.app }}
-          RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
-          
-          # Final stage
-          FROM alpine:latest
-          
-          # Install ca-certificates for HTTPS requests
-          RUN apk --no-cache add ca-certificates
-          
-          WORKDIR /root/
-          
-          # Copy the binary from builder stage
-          COPY --from=builder /app/apps/${{ matrix.app }}/main .
-          
-          # Expose port (adjust as needed)
-          EXPOSE 8080
-          
-          # Run the binary
-          CMD ["./main"]
-          EOF
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/${{ matrix.app }}/Dockerfile
+          file: .devcontainer/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-node-apps:
-    name: Build Node.js Applications Docker Images
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [api, dashboard]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,prefix={{branch}}-
-
-      - name: Create Dockerfile for ${{ matrix.app }}
-        run: |
-          cat > apps/${{ matrix.app }}/Dockerfile << 'EOF'
-          # Multi-stage build for Node.js application
-          FROM node:22-alpine AS builder
-          
-          # Enable corepack for yarn
-          RUN corepack enable
-          
-          # Set working directory
-          WORKDIR /app
-          
-          # Copy package files
-          COPY package.json yarn.lock .yarnrc.yml ./
-          COPY apps/${{ matrix.app }}/package.json apps/${{ matrix.app }}/
-          COPY libs/*/package.json libs/*/
-          
-          # Install dependencies
-          RUN yarn install --immutable
-          
-          # Copy source code
-          COPY . .
-          
-          # Build the application
-          RUN yarn nx build ${{ matrix.app }} --configuration=production
-          
-          # Production stage
-          FROM node:22-alpine AS production
-          
-          # Enable corepack for yarn
-          RUN corepack enable
-          
-          WORKDIR /app
-          
-          # Copy package files
-          COPY package.json yarn.lock .yarnrc.yml ./
-          COPY apps/${{ matrix.app }}/package.json apps/${{ matrix.app }}/
-          
-          # Install only production dependencies
-          RUN yarn workspaces focus ${{ matrix.app }} --production
-          
-          # Copy built application
-          COPY --from=builder /app/dist/apps/${{ matrix.app }} ./dist/
-          
-          # Expose port
-          EXPOSE 3000
-          
-          # Start the application
-          CMD ["node", "dist/main.js"]
-          EOF
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/${{ matrix.app }}/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-summary:
-    name: Build Summary
-    runs-on: ubuntu-latest
-    needs: [build-go-apps, build-node-apps]
-    if: always()
-    steps:
-      - name: Check build results
-        run: |
-          echo "Go apps build result: ${{ needs.build-go-apps.result }}"
-          echo "Node.js apps build result: ${{ needs.build-node-apps.result }}"
-          
-          if [[ "${{ needs.build-go-apps.result }}" == "failure" || "${{ needs.build-node-apps.result }}" == "failure" ]]; then
-            echo "One or more builds failed"
-            exit 1
-          fi
-          
-          echo "All builds completed successfully!" 
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true 
