@@ -68,17 +68,17 @@ jobs:
           # Set working directory
           WORKDIR /app
           
-          # Copy go.work files
+          # Copy all go.mod and go.sum files to satisfy go.work dependencies
           COPY go.work go.work.sum ./
-          
-          # Copy all module files first for better caching
-          COPY apps/${{ matrix.app }}/go.mod apps/${{ matrix.app }}/go.sum apps/${{ matrix.app }}/
+          COPY apps/cli/go.mod apps/cli/go.sum apps/cli/
+          COPY apps/daemon/go.mod apps/daemon/go.sum apps/daemon/
+          COPY apps/runner/go.mod apps/runner/go.sum apps/runner/
           COPY libs/api-client-go/go.mod libs/api-client-go/go.sum libs/api-client-go/
           
           # Download dependencies
           RUN go mod download
           
-          # Copy source code
+          # Copy source code for the target app and shared libraries
           COPY apps/${{ matrix.app }}/ apps/${{ matrix.app }}/
           COPY libs/api-client-go/ libs/api-client-go/
           
