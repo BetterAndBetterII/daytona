@@ -145,6 +145,14 @@ jobs:
           tags: |
             ${{ steps.vars.outputs.repo }}-${{ matrix.suffix }}:sha-${{ steps.vars.outputs.sha }}
             ${{ steps.vars.outputs.repo }}-${{ matrix.suffix }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # 最大化缓存：优先使用 registry 缓存（跨工作流/runner 持久），保留 GHA 缓存，并内联到镜像
+          cache-from: |
+            type=registry,ref=${{ steps.vars.outputs.repo }}-${{ matrix.suffix }}:buildcache
+            type=registry,ref=${{ steps.vars.outputs.repo }}-${{ matrix.suffix }}:latest
+            type=gha
+          cache-to: |
+            type=registry,ref=${{ steps.vars.outputs.repo }}-${{ matrix.suffix }}:buildcache,mode=max,compression=zstd,oci-mediatypes=true
+            type=gha,mode=max
+            type=inline
+          provenance: mode=max
           build-args: ${{ matrix.build_args }}
