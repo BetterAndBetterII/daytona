@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   db:
     image: postgres:11.9
@@ -16,6 +14,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   redis:
     image: redis:7-alpine
@@ -27,6 +27,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   minio:
     image: minio/minio:latest
@@ -46,6 +48,8 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   registry:
     image: registry:2.8.2
@@ -61,6 +65,8 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   registry-ui:
     image: joxit/docker-registry-ui:main
@@ -79,6 +85,8 @@ services:
       - registry
     ports:
       - "8082:80"
+    networks:
+      - internal
 
   api:
     image: ghcr.io/betterandbetterii/daytona-api:latest
@@ -107,7 +115,6 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /var/log/app:rw,size=100m
     volumes:
       - logs_api:/var/log/app
 
@@ -124,7 +131,6 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /var/log/app:rw,size=100m
     volumes:
       - logs_dashboard:/var/log/app
 
@@ -165,7 +171,6 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /app/logs:rw,size=100m
     environment:
       DAYTONA_DAEMON_LOG_FILE_PATH: /app/logs/daemon.log
     volumes:
@@ -194,7 +199,6 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /var/log/app:rw,size=100m
     volumes:
       - logs_proxy:/var/log/app
 
