@@ -4,9 +4,10 @@ set -e
 
 # Check if current architecture is amd64
 if [ "$(uname -m)" = "x86_64" ]; then
-    echo "Building computer-use for amd64 architecture (native build)..."
+    echo "Building computer-use for amd64 architecture (native build with CGO)..."
     cd libs/computer-use
-    go build -o ../../dist/libs/computer-use-amd64 main.go
+    mkdir -p ../../dist/libs
+    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o ../../dist/libs/computer-use-amd64 main.go
     echo "Native build completed successfully"
     exit 0
 fi

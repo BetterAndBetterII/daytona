@@ -20,7 +20,7 @@ RUN apk add --no-cache ca-certificates \
     && addgroup -g 1001 -S app \
     && adduser -S app -u 1001 -G app
 
-COPY --from=builder /src/dist/apps/cli/cli /usr/local/bin/daytona
+COPY --from=builder /src/dist/apps/cli /usr/local/bin/daytona
 
 USER app
 ENTRYPOINT ["/usr/local/bin/daytona"]

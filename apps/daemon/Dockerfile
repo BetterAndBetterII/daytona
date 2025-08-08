@@ -21,7 +21,7 @@ RUN apk add --no-cache ca-certificates git openssh-client \
     && addgroup -g 1001 -S app \
     && adduser -S app -u 1001 -G app
 
-COPY --from=builder /src/dist/apps/daemon-amd64/daemon /app/daemon
+COPY --from=builder /src/dist/apps/daemon-amd64 /app/daemon
 
 EXPOSE 22222
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

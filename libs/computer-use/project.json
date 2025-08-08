@@ -19,7 +19,8 @@
     "build-amd64": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "./hack/computer-use/build-computer-use-amd64.sh"
+        "cwd": "{workspaceRoot}",
+        "command": "bash ./hack/computer-use/build-computer-use-amd64.sh"
       }
     },
     "format": {

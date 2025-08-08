@@ -6,7 +6,8 @@
 
 FROM docker.io/golang:1.23-alpine AS builder
 WORKDIR /src
-RUN apk add --no-cache git bash build-base nodejs npm
+ENV NX_DAEMON=false
+RUN apk add --no-cache git bash build-base nodejs npm libx11-dev libxtst-dev pkgconf
 
 # Enable go modules caching
 COPY go.work go.work.sum* ./
@@ -21,6 +22,7 @@ COPY . .
 
 # Build daemon assets and binaries referenced by runner embed copy tasks
 RUN npm i -g corepack && corepack enable && corepack prepare yarn@4.6.0 --activate && yarn install --immutable
+RUN chmod +x hack/computer-use/build-computer-use-amd64.sh
 RUN yarn nx run daemon:build-amd64
 RUN yarn nx run computer-use:build-amd64
 
@@ -35,7 +37,7 @@ RUN apk add --no-cache ca-certificates bash git \
     && adduser -S app -u 1001 -G app
 
 # Copy runner binary
-COPY --from=builder /src/dist/apps/runner-amd64/runner /app/runner
+COPY --from=builder /src/dist/apps/runner-amd64 /app/runner
 
 # Runner listens on API_PORT (default 8080)
 ENV API_PORT=8080

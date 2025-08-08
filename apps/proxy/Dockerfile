@@ -20,7 +20,7 @@ RUN apk add --no-cache ca-certificates \
     && addgroup -g 1001 -S app \
     && adduser -S app -u 1001 -G app
 
-COPY --from=builder /src/dist/apps/proxy/proxy /app/proxy
+COPY --from=builder /src/dist/apps/proxy /app/proxy
 
 ENV PROXY_PORT=4000
 EXPOSE 4000
