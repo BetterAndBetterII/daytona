@@ -18,6 +18,7 @@ package-lock.json
 .settings/
 *.sublime-workspace
 .cursor
+.claude/
 
 # IDE - VSCode
 .vscode/*
