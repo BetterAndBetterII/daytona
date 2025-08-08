@@ -232,7 +232,7 @@ download_daytona() {
     if [[ ! -d ".git" ]]; then
         if command_exists git; then
             log_info "克隆Daytona仓库..."
-            git clone https://github.com/daytonaio/daytona.git . || {
+            git clone https://github.com/betterandbetterii/daytona.git . || {
                 log_warn "Git克隆失败，尝试使用curl下载..."
                 download_with_curl
             }
@@ -249,7 +249,7 @@ download_daytona() {
 # 使用curl下载项目
 download_with_curl() {
     log_info "curl下载方式暂时不可用，请手动下载项目"
-    log_info "访问: https://github.com/daytonaio/daytona"
+    log_info "访问: https://github.com/betterandbetterii/daytona"
     error_exit "请手动下载项目后重新运行此脚本"
 }
 

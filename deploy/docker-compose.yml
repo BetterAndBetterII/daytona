@@ -81,9 +81,7 @@ services:
       - "8082:80"
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/betterandbetterii/daytona-api:latest
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-production}
@@ -114,11 +112,7 @@ services:
       - logs_api:/var/log/app
 
   dashboard:
-    build:
-      context: .
-      dockerfile: apps/dashboard/Dockerfile
-      args:
-        VITE_API_URL: http://api:3000
+    image: ghcr.io/betterandbetterii/daytona-dashboard:latest
     restart: unless-stopped
     depends_on:
       - api
@@ -135,9 +129,7 @@ services:
       - logs_dashboard:/var/log/app
 
   runner:
-    build:
-      context: .
-      dockerfile: apps/runner/Dockerfile
+    image: ghcr.io/betterandbetterii/daytona-runner:latest
     restart: unless-stopped
     ports:
       - "3003:8080"
@@ -163,9 +155,7 @@ services:
       retries: 3
 
   daemon:
-    build:
-      context: .
-      dockerfile: apps/daemon/Dockerfile
+    image: ghcr.io/betterandbetterii/daytona-daemon:latest
     restart: unless-stopped
     ports:
       - "22222:22222"
@@ -182,9 +172,7 @@ services:
       - logs_daemon:/app/logs
 
   proxy:
-    build:
-      context: .
-      dockerfile: apps/proxy/Dockerfile
+    image: ghcr.io/betterandbetterii/daytona-proxy:latest
     restart: unless-stopped
     environment:
       PROXY_PORT: ${PROXY_PORT:-4000}
