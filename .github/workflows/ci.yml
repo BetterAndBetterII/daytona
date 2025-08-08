@@ -26,7 +26,9 @@ jobs:
         run: corepack enable
 
       - name: Install deps
-        run: yarn install --immutable
+        run: |
+          corepack prepare yarn@4.6.0 --activate
+          yarn install --immutable
 
       - name: Lint TS
         run: yarn lint:ts
