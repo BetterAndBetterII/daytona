@@ -6,7 +6,7 @@
 # ---------- Builder ----------
 FROM docker.io/node:lts-alpine AS builder
 WORKDIR /workspace
-RUN apk add --no-cache git libc6-compat
+RUN apk add --no-cache git libc6-compat go
 COPY . .
 RUN corepack enable && yarn install --immutable
 

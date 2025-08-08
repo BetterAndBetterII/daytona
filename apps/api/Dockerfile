@@ -7,7 +7,7 @@ FROM docker.io/node:lts-alpine AS builder
 WORKDIR /workspace
 
 # System deps (for node-gyp if needed during build)
-RUN apk add --no-cache git python3 make g++ libc6-compat
+RUN apk add --no-cache git python3 make g++ libc6-compat go
 
 # Copy repo (prefer full copy to keep Nx context; can be optimized later)
 COPY . .
