@@ -4,6 +4,7 @@
 
 FROM docker.io/golang:1.23-alpine AS builder
 WORKDIR /src
+ENV NX_DAEMON=false
 RUN apk add --no-cache git build-base nodejs npm
 
 COPY go.work go.work.sum* ./
