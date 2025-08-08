@@ -117,6 +117,7 @@ services:
       - /tmp
     volumes:
       - logs_api:/var/log/app
+      - ../.env:/app/.env:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT:-3000}/api >/dev/null 2>&1 || exit 1"]
       interval: 30s
