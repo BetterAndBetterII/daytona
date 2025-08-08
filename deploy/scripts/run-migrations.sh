@@ -23,11 +23,11 @@ fi
 cd deploy
 
 echo "📋 检查服务状态..."
-docker-compose ps
+docker compose ps
 
 echo "🔄 等待数据库服务就绪..."
 # 等待数据库服务启动
-until docker-compose exec -T db pg_isready -U user -d application_ctx; do
+until docker compose exec -T db pg_isready -U user -d application_ctx; do
     echo "⏳ 等待数据库启动..."
     sleep 5
 done
@@ -36,7 +36,7 @@ echo "✅ 数据库已就绪"
 
 echo "🔧 执行数据库迁移..."
 # 在 API 容器中执行迁移
-docker-compose exec -T api npm run migration:run
+docker compose exec -T api npm run migration:run
 
 if [ $? -eq 0 ]; then
     echo "✅ 数据库迁移执行成功"
@@ -47,9 +47,9 @@ fi
 
 echo "🎉 数据库迁移完成！"
 echo "📊 迁移状态："
-docker-compose exec -T db psql -U user -d application_ctx -c "\dt" 2>/dev/null | head -20
+docker compose exec -T db psql -U user -d application_ctx -c "\dt" 2>/dev/null | head -20
 
 echo "🔄 重启 API 服务..."
-docker-compose restart api
+docker compose restart api
 
 echo "✅ 所有操作完成！"
