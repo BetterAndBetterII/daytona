@@ -36,9 +36,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 # Add minimal tools for proper PID 1 handling and healthcheck
-RUN apk add --no-cache tini curl libc6-compat \
- && addgroup -g 1001 -S nodejs \
- && adduser -S node -u 1001 -G nodejs
+# node:lts-alpine 基镜像已自带非 root 的 `node` 用户，无需重复创建
+RUN apk add --no-cache tini curl libc6-compat
 
 # Copy node_modules and build output
 COPY --from=deps /app/node_modules ./node_modules
