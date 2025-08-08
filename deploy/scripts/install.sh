@@ -284,6 +284,8 @@ create_env_file() {
     sed -i.bak "s/DB_PASSWORD=daytona_db_pass_123/DB_PASSWORD=${db_password}/" .env
     sed -i.bak "s/MINIO_ROOT_PASSWORD=daytona_minio_pass_123/MINIO_ROOT_PASSWORD=${minio_password}/" .env
     sed -i.bak "s/MINIO_ROOT_USER=minioadmin/MINIO_ROOT_USER=${minio_user}/" .env
+    sed -i.bak "s/S3_ACCESS_KEY=minioadmin/S3_ACCESS_KEY=${minio_user}/" .env
+    sed -i.bak "s/S3_SECRET_KEY=minioadmin/S3_SECRET_KEY=${minio_password}/" .env
     sed -i.bak "s/API_TOKEN=daytona_api_token_123/API_TOKEN=${api_token}/" .env
     sed -i.bak "s/PROXY_API_KEY=daytona_proxy_key_123/PROXY_API_KEY=${proxy_key}/" .env
     
@@ -366,7 +368,7 @@ show_access_info() {
     echo "=========================================="
     echo
     
-    # 显示MinIO访问凭据
+    # 显示MinIO和S3访问凭据
     if [[ -f "../.env" ]]; then
         echo "🔑 MinIO访问凭据:"
         local minio_user="" minio_password=""
@@ -374,6 +376,20 @@ show_access_info() {
         minio_password=$(awk -F= '/^MINIO_ROOT_PASSWORD=/{print substr($0, index($0,"=")+1)}' ../.env)
         echo "  用户名: ${minio_user:-未设置}"
         echo "  密码: ${minio_password:-未设置}"
+        echo "  Web控制台: http://localhost:9001"
+        echo "  API端点: http://localhost:9000"
+        echo
+        
+        echo "💾 S3对象存储配置:"
+        local s3_endpoint="" s3_access_key="" s3_secret_key="" s3_bucket=""
+        s3_endpoint=$(awk -F= '/^S3_ENDPOINT=/{print substr($0, index($0,"=")+1)}' ../.env)
+        s3_access_key=$(awk -F= '/^S3_ACCESS_KEY=/{print substr($0, index($0,"=")+1)}' ../.env)
+        s3_secret_key=$(awk -F= '/^S3_SECRET_KEY=/{print substr($0, index($0,"=")+1)}' ../.env)
+        s3_bucket=$(awk -F= '/^S3_DEFAULT_BUCKET=/{print substr($0, index($0,"=")+1)}' ../.env)
+        echo "  端点: ${s3_endpoint:-未设置}"
+        echo "  访问密钥: ${s3_access_key:-未设置}"
+        echo "  秘密密钥: ${s3_secret_key:-未设置}"
+        echo "  默认存储桶: ${s3_bucket:-未设置}"
         echo "=========================================="
         echo
     fi
