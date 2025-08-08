@@ -1,4 +1,6 @@
 import nx from '@nx/eslint-plugin'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -6,10 +8,14 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist', '**/vite.config.*.timestamp*', '**/vitest.config.*.timestamp*'],
+    ignores: ['**/dist', '**/vite.config.*.timestamp*', '**/vitest.config.*.timestamp*', 'apps/docs/**'],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+    },
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',

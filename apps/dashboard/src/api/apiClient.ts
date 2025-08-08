@@ -8,25 +8,29 @@ import {
   ApiKeysApi,
   Configuration,
   DockerRegistryApi,
-  ImagesApi,
+  SnapshotsApi,
   OrganizationsApi,
   UsersApi,
   VolumesApi,
-  WorkspaceApi,
+  SandboxApi,
+  ToolboxApi,
+  AuditApi,
 } from '@daytonaio/api-client'
 import axios, { AxiosError } from 'axios'
 import { DaytonaError } from './errors'
 
 export class ApiClient {
   private config: Configuration
-  private _imageApi: ImagesApi
-  private _workspaceApi: WorkspaceApi
+  private _snapshotApi: SnapshotsApi
+  private _sandboxApi: SandboxApi
   private _userApi: UsersApi
   private _apiKeyApi: ApiKeysApi
   private _dockerRegistryApi: DockerRegistryApi
   private _organizationsApi: OrganizationsApi
   private _billingApi: BillingApiClient
   private _volumeApi: VolumesApi
+  private _toolboxApi: ToolboxApi
+  private _auditApi: AuditApi
 
   constructor(accessToken: string) {
     this.config = new Configuration({
@@ -53,26 +57,28 @@ export class ApiClient {
     )
 
     // Initialize APIs
-    this._imageApi = new ImagesApi(this.config, undefined, axiosInstance)
-    this._workspaceApi = new WorkspaceApi(this.config, undefined, axiosInstance)
+    this._snapshotApi = new SnapshotsApi(this.config, undefined, axiosInstance)
+    this._sandboxApi = new SandboxApi(this.config, undefined, axiosInstance)
     this._userApi = new UsersApi(this.config, undefined, axiosInstance)
     this._apiKeyApi = new ApiKeysApi(this.config, undefined, axiosInstance)
     this._dockerRegistryApi = new DockerRegistryApi(this.config, undefined, axiosInstance)
     this._organizationsApi = new OrganizationsApi(this.config, undefined, axiosInstance)
     this._billingApi = new BillingApiClient(import.meta.env.VITE_BILLING_API_URL || window.location.origin, accessToken)
     this._volumeApi = new VolumesApi(this.config, undefined, axiosInstance)
+    this._toolboxApi = new ToolboxApi(this.config, undefined, axiosInstance)
+    this._auditApi = new AuditApi(this.config, undefined, axiosInstance)
   }
 
   public setAccessToken(accessToken: string) {
     this.config.accessToken = accessToken
   }
 
-  public get imageApi() {
-    return this._imageApi
+  public get snapshotApi() {
+    return this._snapshotApi
   }
 
-  public get workspaceApi() {
-    return this._workspaceApi
+  public get sandboxApi() {
+    return this._sandboxApi
   }
 
   public get userApi() {
@@ -97,5 +103,13 @@ export class ApiClient {
 
   public get volumeApi() {
     return this._volumeApi
+  }
+
+  public get toolboxApi() {
+    return this._toolboxApi
+  }
+
+  public get auditApi() {
+    return this._auditApi
   }
 }

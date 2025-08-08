@@ -496,6 +496,34 @@ paths:
       summary: Unsuspend organization
       tags:
         - organizations
+  /organizations/by-sandbox-id/{sandboxId}:
+    get:
+      operationId: getOrganizationBySandboxId
+      parameters:
+        - description: Sandbox ID
+          explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: Organization
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get organization by sandbox ID
+      tags:
+        - organizations
   /organizations/{organizationId}/roles:
     get:
       operationId: listOrganizationRoles
@@ -1017,6 +1045,28 @@ paths:
       summary: Get available account providers
       tags:
         - users
+  /users/linked-accounts:
+    post:
+      operationId: linkAccount
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkedAccount'
+        required: true
+      responses:
+        '204':
+          description: Account linked successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Link account
+      tags:
+        - users
   /users/linked-accounts/{provider}/{providerUserId}:
     delete:
       operationId: unlinkAccount
@@ -1047,9 +1097,56 @@ paths:
       summary: Unlink account
       tags:
         - users
-  /workspace:
+  /users/mfa/sms/enroll:
+    post:
+      operationId: enrollInSmsMfa
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+          description: SMS MFA enrollment URL
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Enroll in SMS MFA
+      tags:
+        - users
+  /users/{id}:
     get:
-      operationId: listWorkspaces
+      operationId: getUser
+      parameters:
+        - explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: User details
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get user by ID
+      tags:
+        - users
+  /sandbox:
+    get:
+      operationId: listSandboxes
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1076,26 +1173,34 @@ paths:
             example: '{"label1": "value1", "label2": "value2"}'
             type: string
           style: form
+        - description: Include errored and deleted sandboxes
+          explode: true
+          in: query
+          name: includeErroredDeleted
+          required: false
+          schema:
+            type: boolean
+          style: form
       responses:
         '200':
           content:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/Workspace'
+                  $ref: '#/components/schemas/Sandbox'
                 type: array
-          description: List of all workspaces
+          description: List of all sandboxes
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: List all workspaces
+      summary: List all sandboxes
       tags:
-        - workspace
+        - sandbox
     post:
-      operationId: createWorkspace
+      operationId: createSandbox
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1109,27 +1214,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateWorkspace'
+              $ref: '#/components/schemas/CreateSandbox'
         required: true
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Workspace'
-          description: The workspace has been successfully created.
+                $ref: '#/components/schemas/Sandbox'
+          description: The sandbox has been successfully created.
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Create a new workspace
+      summary: Create a new sandbox
       tags:
-        - workspace
-  /workspace/{workspaceId}:
+        - sandbox
+  /sandbox/{sandboxId}:
     delete:
-      operationId: deleteWorkspace
+      operationId: deleteSandbox
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1139,10 +1244,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1156,18 +1261,18 @@ paths:
           style: form
       responses:
         '200':
-          description: Workspace has been deleted
+          description: Sandbox has been deleted
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Delete workspace
+      summary: Delete sandbox
       tags:
-        - workspace
+        - sandbox
     get:
-      operationId: getWorkspace
+      operationId: getSandbox
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1185,10 +1290,10 @@ paths:
           schema:
             type: boolean
           style: form
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1198,20 +1303,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Workspace'
-          description: Workspace details
+                $ref: '#/components/schemas/Sandbox'
+          description: Sandbox details
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Get workspace details
+      summary: Get sandbox details
       tags:
-        - workspace
-  /workspace/{workspaceId}/start:
+        - sandbox
+  /sandbox/{sandboxId}/start:
     post:
-      operationId: startWorkspace
+      operationId: startSandbox
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1221,29 +1326,34 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
           style: simple
       responses:
         '200':
-          description: Workspace has been started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sandbox'
+          description: Sandbox has been started or is being restored from archived
+            state
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Start workspace
+      summary: Start sandbox
       tags:
-        - workspace
-  /workspace/{workspaceId}/stop:
+        - sandbox
+  /sandbox/{sandboxId}/stop:
     post:
-      operationId: stopWorkspace
+      operationId: stopSandbox
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1253,27 +1363,27 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
           style: simple
       responses:
         '200':
-          description: Workspace has been stopped
+          description: Sandbox has been stopped
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Stop workspace
+      summary: Stop sandbox
       tags:
-        - workspace
-  /workspace/{workspaceId}/labels:
+        - sandbox
+  /sandbox/{sandboxId}/labels:
     put:
       operationId: replaceLabels
       parameters:
@@ -1285,10 +1395,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1297,14 +1407,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WorkspaceLabels'
+              $ref: '#/components/schemas/SandboxLabels'
         required: true
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WorkspaceLabels'
+                $ref: '#/components/schemas/SandboxLabels'
           description: Labels have been successfully replaced
       security:
         - bearer: []
@@ -1312,12 +1422,12 @@ paths:
             - openid
             - profile
             - email
-      summary: Replace workspace labels
+      summary: Replace sandbox labels
       tags:
-        - workspace
-  /workspace/{workspaceId}/snapshot:
+        - sandbox
+  /sandbox/{sandboxId}/backup:
     post:
-      operationId: createSnapshot
+      operationId: createBackup
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1327,10 +1437,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1340,18 +1450,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Workspace'
-          description: Workspace snapshot has been initiated
+                $ref: '#/components/schemas/Sandbox'
+          description: Sandbox backup has been initiated
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Create workspace snapshot
+      summary: Create sandbox backup
       tags:
-        - workspace
-  /workspace/{workspaceId}/public/{isPublic}:
+        - sandbox
+  /sandbox/{sandboxId}/public/{isPublic}:
     post:
       operationId: updatePublicStatus
       parameters:
@@ -1363,10 +1473,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1390,8 +1500,8 @@ paths:
             - email
       summary: Update public status
       tags:
-        - workspace
-  /workspace/{workspaceId}/autostop/{interval}:
+        - sandbox
+  /sandbox/{sandboxId}/autostop/{interval}:
     post:
       operationId: setAutostopInterval
       parameters:
@@ -1403,10 +1513,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1428,12 +1538,94 @@ paths:
             - openid
             - profile
             - email
-      summary: Set workspace auto-stop interval
+      summary: Set sandbox auto-stop interval
       tags:
-        - workspace
-  /workspace/{workspaceId}/archive:
+        - sandbox
+  /sandbox/{sandboxId}/autoarchive/{interval}:
     post:
-      operationId: archiveWorkspace
+      operationId: setAutoArchiveInterval
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the sandbox
+          explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Auto-archive interval in minutes (0 means the maximum interval
+            will be used)
+          explode: false
+          in: path
+          name: interval
+          required: true
+          schema:
+            type: number
+          style: simple
+      responses:
+        '200':
+          description: Auto-archive interval has been set
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Set sandbox auto-archive interval
+      tags:
+        - sandbox
+  /sandbox/{sandboxId}/autodelete/{interval}:
+    post:
+      operationId: setAutoDeleteInterval
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the sandbox
+          explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: "Auto-delete interval in minutes (negative value means disabled,\
+            \ 0 means delete immediately upon stopping)"
+          explode: false
+          in: path
+          name: interval
+          required: true
+          schema:
+            type: number
+          style: simple
+      responses:
+        '200':
+          description: Auto-delete interval has been set
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Set sandbox auto-delete interval
+      tags:
+        - sandbox
+  /sandbox/{sandboxId}/archive:
+    post:
+      operationId: archiveSandbox
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -1445,24 +1637,24 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
           style: simple
       responses:
         '200':
-          description: Workspace has been archived
+          description: Sandbox has been archived
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Archive workspace
+      summary: Archive sandbox
       tags:
-        - workspace
-  /workspace/{workspaceId}/ports/{port}/preview-url:
+        - sandbox
+  /sandbox/{sandboxId}/ports/{port}/preview-url:
     get:
       operationId: getPortPreviewUrl
       parameters:
@@ -1474,10 +1666,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1503,10 +1695,10 @@ paths:
             - openid
             - profile
             - email
-      summary: Get preview URL for a workspace port
+      summary: Get preview URL for a sandbox port
       tags:
-        - workspace
-  /workspace/{workspaceId}/build-logs:
+        - sandbox
+  /sandbox/{sandboxId}/build-logs:
     get:
       operationId: getBuildLogs
       parameters:
@@ -1518,10 +1710,10 @@ paths:
           schema:
             type: string
           style: simple
-        - description: ID of the workspace
+        - description: ID of the sandbox
           explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1545,10 +1737,10 @@ paths:
             - email
       summary: Get build logs
       tags:
-        - workspace
-  /nodes:
+        - sandbox
+  /runners:
     get:
-      operationId: listNodes
+      operationId: listRunners
       parameters: []
       responses:
         '200':
@@ -1559,17 +1751,17 @@ paths:
             - openid
             - profile
             - email
-      summary: List all nodes
+      summary: List all runners
       tags:
-        - nodes
+        - runners
     post:
-      operationId: createNode
+      operationId: createRunner
       parameters: []
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateNode'
+              $ref: '#/components/schemas/CreateRunner'
         required: true
       responses:
         '201':
@@ -1580,12 +1772,12 @@ paths:
             - openid
             - profile
             - email
-      summary: Create node
+      summary: Create runner
       tags:
-        - nodes
-  /nodes/{id}/scheduling:
+        - runners
+  /runners/{id}/scheduling:
     patch:
-      operationId: updateNodeScheduling
+      operationId: updateRunnerScheduling
       parameters:
         - explode: false
           in: path
@@ -1603,10 +1795,67 @@ paths:
             - openid
             - profile
             - email
-      summary: Update node scheduling status
+      summary: Update runner scheduling status
       tags:
-        - nodes
-  /toolbox/{workspaceId}/toolbox/project-dir:
+        - runners
+  /runners/by-sandbox/{sandboxId}:
+    get:
+      operationId: getRunnerBySandboxId
+      parameters:
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Runner'
+          description: Runner found
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get runner by sandbox ID
+      tags:
+        - runners
+  /runners/by-snapshot-ref:
+    get:
+      operationId: getRunnersBySnapshotRef
+      parameters:
+        - description: Snapshot ref
+          explode: true
+          in: query
+          name: ref
+          required: true
+          schema:
+            type: string
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/RunnerSnapshotDto'
+                type: array
+          description: Runners found for the snapshot
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get runners by snapshot ref
+      tags:
+        - runners
+  /toolbox/{sandboxId}/toolbox/project-dir:
     get:
       operationId: getProjectDir
       parameters:
@@ -1620,7 +1869,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1638,12 +1887,12 @@ paths:
             - openid
             - profile
             - email
-      summary: Get workspace project dir
+      summary: Get sandbox project dir
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files:
+  /toolbox/{sandboxId}/toolbox/files:
     delete:
-      description: Delete file inside workspace
+      description: Delete file inside sandbox
       operationId: deleteFile
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1656,7 +1905,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1693,7 +1942,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1723,9 +1972,9 @@ paths:
       summary: List files
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/download:
+  /toolbox/{sandboxId}/toolbox/files/download:
     get:
-      description: Download file from workspace
+      description: Download file from sandbox
       operationId: downloadFile
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1738,7 +1987,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1767,9 +2016,9 @@ paths:
       summary: Download file
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/find:
+  /toolbox/{sandboxId}/toolbox/files/find:
     get:
-      description: Search for text/pattern inside workspace files
+      description: Search for text/pattern inside sandbox files
       operationId: findInFiles
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1782,7 +2031,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1819,9 +2068,9 @@ paths:
       summary: Search for text/pattern in files
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/folder:
+  /toolbox/{sandboxId}/toolbox/files/folder:
     post:
-      description: Create folder inside workspace
+      description: Create folder inside sandbox
       operationId: createFolder
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1834,7 +2083,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1865,9 +2114,9 @@ paths:
       summary: Create folder
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/info:
+  /toolbox/{sandboxId}/toolbox/files/info:
     get:
-      description: Get file info inside workspace
+      description: Get file info inside sandbox
       operationId: getFileInfo
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1880,7 +2129,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1908,9 +2157,9 @@ paths:
       summary: Get file info
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/move:
+  /toolbox/{sandboxId}/toolbox/files/move:
     post:
-      description: Move file inside workspace
+      description: Move file inside sandbox
       operationId: moveFile
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1923,7 +2172,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -1954,9 +2203,9 @@ paths:
       summary: Move file
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/permissions:
+  /toolbox/{sandboxId}/toolbox/files/permissions:
     post:
-      description: Set file owner/group/permissions inside workspace
+      description: Set file owner/group/permissions inside sandbox
       operationId: setFilePermissions
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -1969,7 +2218,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2014,9 +2263,9 @@ paths:
       summary: Set file permissions
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/replace:
+  /toolbox/{sandboxId}/toolbox/files/replace:
     post:
-      description: Replace text/pattern in multiple files inside workspace
+      description: Replace text/pattern in multiple files inside sandbox
       operationId: replaceInFiles
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2029,7 +2278,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2058,9 +2307,9 @@ paths:
       summary: Replace in files
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/search:
+  /toolbox/{sandboxId}/toolbox/files/search:
     get:
-      description: Search for files inside workspace
+      description: Search for files inside sandbox
       operationId: searchFiles
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2073,7 +2322,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2108,10 +2357,10 @@ paths:
       summary: Search files
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/upload:
+  /toolbox/{sandboxId}/toolbox/files/upload:
     post:
       deprecated: true
-      description: Upload file inside workspace
+      description: Upload file inside sandbox
       operationId: uploadFile
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2124,7 +2373,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2154,9 +2403,9 @@ paths:
       summary: Upload file
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/files/bulk-upload:
+  /toolbox/{sandboxId}/toolbox/files/bulk-upload:
     post:
-      description: Upload multiple files inside workspace
+      description: Upload multiple files inside sandbox
       operationId: uploadFiles
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2169,7 +2418,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2194,7 +2443,7 @@ paths:
       summary: Upload multiple files
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/add:
+  /toolbox/{sandboxId}/toolbox/git/add:
     post:
       description: Add files to git commit
       operationId: gitAddFiles
@@ -2209,7 +2458,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2232,7 +2481,7 @@ paths:
       summary: Add files
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/branches:
+  /toolbox/{sandboxId}/toolbox/git/branches:
     delete:
       description: Delete branch on git repository
       operationId: gitDeleteBranch
@@ -2247,7 +2496,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2284,7 +2533,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2326,7 +2575,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2349,7 +2598,7 @@ paths:
       summary: Create branch
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/clone:
+  /toolbox/{sandboxId}/toolbox/git/clone:
     post:
       description: Clone git repository
       operationId: gitCloneRepository
@@ -2364,7 +2613,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2387,7 +2636,7 @@ paths:
       summary: Clone repository
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/commit:
+  /toolbox/{sandboxId}/toolbox/git/commit:
     post:
       description: Commit changes to git repository
       operationId: gitCommitChanges
@@ -2402,7 +2651,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2429,7 +2678,7 @@ paths:
       summary: Commit changes
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/history:
+  /toolbox/{sandboxId}/toolbox/git/history:
     get:
       description: Get commit history from git repository
       operationId: gitGetHistory
@@ -2444,7 +2693,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2474,7 +2723,7 @@ paths:
       summary: Get commit history
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/pull:
+  /toolbox/{sandboxId}/toolbox/git/pull:
     post:
       description: Pull changes from remote
       operationId: gitPullChanges
@@ -2489,7 +2738,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2512,7 +2761,7 @@ paths:
       summary: Pull changes
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/push:
+  /toolbox/{sandboxId}/toolbox/git/push:
     post:
       description: Push changes to remote
       operationId: gitPushChanges
@@ -2527,7 +2776,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2550,7 +2799,7 @@ paths:
       summary: Push changes
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/checkout:
+  /toolbox/{sandboxId}/toolbox/git/checkout:
     post:
       description: Checkout branch or commit in git repository
       operationId: gitCheckoutBranch
@@ -2565,7 +2814,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2588,7 +2837,7 @@ paths:
       summary: Checkout branch
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/git/status:
+  /toolbox/{sandboxId}/toolbox/git/status:
     get:
       description: Get status from git repository
       operationId: gitGetStatus
@@ -2603,7 +2852,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2631,9 +2880,9 @@ paths:
       summary: Get git status
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/process/execute:
+  /toolbox/{sandboxId}/toolbox/process/execute:
     post:
-      description: Execute command synchronously inside workspace
+      description: Execute command synchronously inside sandbox
       operationId: executeCommand
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2646,7 +2895,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2673,9 +2922,9 @@ paths:
       summary: Execute command
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/process/session:
+  /toolbox/{sandboxId}/toolbox/process/session:
     get:
-      description: List all active sessions in the workspace
+      description: List all active sessions in the sandbox
       operationId: listSessions
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2688,7 +2937,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2712,7 +2961,7 @@ paths:
       tags:
         - toolbox
     post:
-      description: Create a new session in the workspace
+      description: Create a new session in the sandbox
       operationId: createSession
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -2725,7 +2974,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2748,7 +2997,7 @@ paths:
       summary: Create session
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/process/session/{sessionId}:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}:
     delete:
       description: Delete a specific session
       operationId: deleteSession
@@ -2763,7 +3012,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2801,7 +3050,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2829,7 +3078,7 @@ paths:
       summary: Get session
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/process/session/{sessionId}/exec:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/exec:
     post:
       description: Execute a command in a specific session
       operationId: executeSessionCommand
@@ -2844,7 +3093,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2884,7 +3133,7 @@ paths:
       summary: Execute command in session
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/process/session/{sessionId}/command/{commandId}:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}:
     get:
       description: Get session command by ID
       operationId: getSessionCommand
@@ -2899,7 +3148,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2934,7 +3183,7 @@ paths:
       summary: Get session command
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/process/session/{sessionId}/command/{commandId}/logs:
+  /toolbox/{sandboxId}/toolbox/process/session/{sessionId}/command/{commandId}/logs:
     get:
       description: Get logs for a specific command in a session
       operationId: getSessionCommandLogs
@@ -2949,7 +3198,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -2991,7 +3240,7 @@ paths:
       summary: Get command logs
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/completions:
+  /toolbox/{sandboxId}/toolbox/lsp/completions:
     post:
       description: The Completion request is sent from the client to the server to
         compute completion items at a given cursor position.
@@ -3007,7 +3256,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3034,7 +3283,7 @@ paths:
       summary: Get Lsp Completions
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/did-close:
+  /toolbox/{sandboxId}/toolbox/lsp/did-close:
     post:
       description: The document close notification is sent from the client to the
         server when the document got closed in the client.
@@ -3050,7 +3299,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3073,7 +3322,7 @@ paths:
       summary: Call Lsp DidClose
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/did-open:
+  /toolbox/{sandboxId}/toolbox/lsp/did-open:
     post:
       description: The document open notification is sent from the client to the server
         to signal newly opened text documents.
@@ -3089,7 +3338,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3112,7 +3361,7 @@ paths:
       summary: Call Lsp DidOpen
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/document-symbols:
+  /toolbox/{sandboxId}/toolbox/lsp/document-symbols:
     get:
       description: The document symbol request is sent from the client to the server.
       operationId: LspDocumentSymbols
@@ -3127,7 +3376,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3171,9 +3420,9 @@ paths:
       summary: Call Lsp DocumentSymbols
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/start:
+  /toolbox/{sandboxId}/toolbox/lsp/start:
     post:
-      description: Start Lsp server process inside workspace project
+      description: Start Lsp server process inside sandbox project
       operationId: LspStart
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -3186,7 +3435,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3209,9 +3458,9 @@ paths:
       summary: Start Lsp server
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/stop:
+  /toolbox/{sandboxId}/toolbox/lsp/stop:
     post:
-      description: Stop Lsp server process inside workspace project
+      description: Stop Lsp server process inside sandbox project
       operationId: LspStop
       parameters:
         - description: Use with JWT to specify the organization ID
@@ -3224,7 +3473,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3247,7 +3496,7 @@ paths:
       summary: Stop Lsp server
       tags:
         - toolbox
-  /toolbox/{workspaceId}/toolbox/lsp/workspace-symbols:
+  /toolbox/{sandboxId}/toolbox/lsp/workspace-symbols:
     get:
       description: The workspace symbol request is sent from the client to the server
         to list project-wide symbols matching the query string.
@@ -3263,7 +3512,7 @@ paths:
           style: simple
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3307,9 +3556,949 @@ paths:
       summary: Call Lsp WorkspaceSymbols
       tags:
         - toolbox
-  /images:
+  /toolbox/{sandboxId}/toolbox/computeruse/start:
+    post:
+      description: 'Start all VNC desktop processes (Xvfb, xfce4, x11vnc, novnc)'
+      operationId: startComputerUse
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputerUseStartResponse'
+          description: Computer use processes started successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Start computer use processes
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/stop:
+    post:
+      description: 'Stop all VNC desktop processes (Xvfb, xfce4, x11vnc, novnc)'
+      operationId: stopComputerUse
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputerUseStopResponse'
+          description: Computer use processes stopped successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Stop computer use processes
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/status:
     get:
-      operationId: getAllImages
+      description: Get status of all VNC desktop processes
+      operationId: getComputerUseStatus
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputerUseStatusResponse'
+          description: Computer use status retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get computer use status
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/status:
+    get:
+      description: Get status of a specific VNC process
+      operationId: getProcessStatus
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: processName
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStatusResponse'
+          description: Process status retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get process status
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/restart:
+    post:
+      description: Restart a specific VNC process
+      operationId: restartProcess
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: processName
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessRestartResponse'
+          description: Process restarted successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Restart process
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/logs:
+    get:
+      description: Get logs for a specific VNC process
+      operationId: getProcessLogs
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: processName
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessLogsResponse'
+          description: Process logs retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get process logs
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/process/{processName}/errors:
+    get:
+      description: Get error logs for a specific VNC process
+      operationId: getProcessErrors
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: processName
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessErrorsResponse'
+          description: Process errors retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get process errors
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/position:
+    get:
+      description: Get current mouse cursor position
+      operationId: getMousePosition
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MousePosition'
+          description: Mouse position retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get mouse position
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/move:
+    post:
+      description: Move mouse cursor to specified coordinates
+      operationId: moveMouse
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouseMoveRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MouseMoveResponse'
+          description: Mouse moved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Move mouse
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/click:
+    post:
+      description: Click mouse at specified coordinates
+      operationId: clickMouse
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouseClickRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MouseClickResponse'
+          description: Mouse clicked successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Click mouse
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/drag:
+    post:
+      description: Drag mouse from start to end coordinates
+      operationId: dragMouse
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouseDragRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MouseDragResponse'
+          description: Mouse dragged successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Drag mouse
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/mouse/scroll:
+    post:
+      description: Scroll mouse at specified coordinates
+      operationId: scrollMouse
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouseScrollRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MouseScrollResponse'
+          description: Mouse scrolled successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Scroll mouse
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/keyboard/type:
+    post:
+      description: Type text using keyboard
+      operationId: typeText
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyboardTypeRequest'
+        required: true
+      responses:
+        '200':
+          description: Text typed successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Type text
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/keyboard/key:
+    post:
+      description: Press a key with optional modifiers
+      operationId: pressKey
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyboardPressRequest'
+        required: true
+      responses:
+        '200':
+          description: Key pressed successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Press key
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/keyboard/hotkey:
+    post:
+      description: Press a hotkey combination
+      operationId: pressHotkey
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyboardHotkeyRequest'
+        required: true
+      responses:
+        '200':
+          description: Hotkey pressed successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Press hotkey
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot:
+    get:
+      description: Take a screenshot of the entire screen
+      operationId: takeScreenshot
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: true
+          in: query
+          name: show_cursor
+          required: false
+          schema:
+            type: boolean
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScreenshotResponse'
+          description: Screenshot taken successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Take screenshot
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region:
+    get:
+      description: Take a screenshot of a specific region
+      operationId: takeRegionScreenshot
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: true
+          in: query
+          name: show_cursor
+          required: false
+          schema:
+            type: boolean
+          style: form
+        - explode: true
+          in: query
+          name: height
+          required: true
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: width
+          required: true
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: 'y'
+          required: true
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: x
+          required: true
+          schema:
+            type: number
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegionScreenshotResponse'
+          description: Region screenshot taken successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Take region screenshot
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot/compressed:
+    get:
+      description: 'Take a compressed screenshot with format, quality, and scale options'
+      operationId: takeCompressedScreenshot
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: true
+          in: query
+          name: scale
+          required: false
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: quality
+          required: false
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: format
+          required: false
+          schema:
+            type: string
+          style: form
+        - explode: true
+          in: query
+          name: show_cursor
+          required: false
+          schema:
+            type: boolean
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompressedScreenshotResponse'
+          description: Compressed screenshot taken successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Take compressed screenshot
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/screenshot/region/compressed:
+    get:
+      description: Take a compressed screenshot of a specific region
+      operationId: takeCompressedRegionScreenshot
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: true
+          in: query
+          name: scale
+          required: false
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: quality
+          required: false
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: format
+          required: false
+          schema:
+            type: string
+          style: form
+        - explode: true
+          in: query
+          name: show_cursor
+          required: false
+          schema:
+            type: boolean
+          style: form
+        - explode: true
+          in: query
+          name: height
+          required: true
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: width
+          required: true
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: 'y'
+          required: true
+          schema:
+            type: number
+          style: form
+        - explode: true
+          in: query
+          name: x
+          required: true
+          schema:
+            type: number
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompressedScreenshotResponse'
+          description: Compressed region screenshot taken successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Take compressed region screenshot
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/display/info:
+    get:
+      description: Get information about displays
+      operationId: getDisplayInfo
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisplayInfoResponse'
+          description: Display info retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get display info
+      tags:
+        - toolbox
+  /toolbox/{sandboxId}/toolbox/computeruse/display/windows:
+    get:
+      description: Get list of open windows
+      operationId: getWindows
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowsResponse'
+          description: Windows list retrieved successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get windows
+      tags:
+        - toolbox
+  /snapshots:
+    get:
+      operationId: getAllSnapshots
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -3340,19 +4529,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedImagesDto'
-          description: List of all images with pagination
+                $ref: '#/components/schemas/PaginatedSnapshotsDto'
+          description: List of all snapshots with pagination
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: List all images
+      summary: List all snapshots
       tags:
-        - images
+        - snapshots
     post:
-      operationId: createImage
+      operationId: createSnapshot
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -3366,29 +4555,65 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateImage'
+              $ref: '#/components/schemas/CreateSnapshot'
         required: true
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageDto'
-          description: The image has been successfully created.
+                $ref: '#/components/schemas/SnapshotDto'
+          description: The snapshot has been successfully created.
         '400':
-          description: Bad request - Images with tag ":latest" are not allowed
+          description: Bad request - Snapshots with tag ":latest" are not allowed
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Create a new image
+      summary: Create a new snapshot
       tags:
-        - images
-  /images/{id}:
+        - snapshots
+  /snapshots/can-cleanup-image:
+    get:
+      operationId: canCleanupImage
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: Image name with tag to check
+          explode: true
+          in: query
+          name: imageName
+          required: true
+          schema:
+            type: string
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: boolean
+          description: Boolean indicating if image can be cleaned up
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Check if an image can be cleaned up
+      tags:
+        - snapshots
+  /snapshots/{id}:
     delete:
-      operationId: removeImage
+      operationId: removeSnapshot
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -3398,7 +4623,7 @@ paths:
           schema:
             type: string
           style: simple
-        - description: Image ID
+        - description: Snapshot ID
           explode: false
           in: path
           name: id
@@ -3408,18 +4633,18 @@ paths:
           style: simple
       responses:
         '200':
-          description: Image has been deleted
+          description: Snapshot has been deleted
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Delete image
+      summary: Delete snapshot
       tags:
-        - images
+        - snapshots
     get:
-      operationId: getImage
+      operationId: getSnapshot
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -3429,7 +4654,7 @@ paths:
           schema:
             type: string
           style: simple
-        - description: Image ID
+        - description: Snapshot ID or name
           explode: false
           in: path
           name: id
@@ -3442,58 +4667,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageDto'
-          description: The image
+                $ref: '#/components/schemas/SnapshotDto'
+          description: The snapshot
         '404':
-          description: Image not found
+          description: Snapshot not found
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Get image by ID
+      summary: Get snapshot by ID or name
       tags:
-        - images
-  /images/build:
-    post:
-      operationId: buildImage
-      parameters:
-        - description: Use with JWT to specify the organization ID
-          explode: false
-          in: header
-          name: X-Daytona-Organization-ID
-          required: false
-          schema:
-            type: string
-          style: simple
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BuildImage'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImageDto'
-          description: The image has been successfully built.
-        '400':
-          description: Bad request - Invalid build parameters
-      security:
-        - bearer: []
-        - oauth2:
-            - openid
-            - profile
-            - email
-      summary: Build a Docker image
-      tags:
-        - images
-  /images/{id}/toggle:
+        - snapshots
+  /snapshots/{id}/general:
     patch:
-      operationId: toggleImageState
+      operationId: setSnapshotGeneralStatus
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -3503,7 +4692,7 @@ paths:
           schema:
             type: string
           style: simple
-        - description: Image ID
+        - description: Snapshot ID
           explode: false
           in: path
           name: id
@@ -3515,69 +4704,27 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ToggleState'
+              $ref: '#/components/schemas/SetSnapshotGeneralStatusDto'
         required: true
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageDto'
-          description: Image state has been toggled
+                $ref: '#/components/schemas/SnapshotDto'
+          description: Snapshot general status has been set
       security:
         - bearer: []
         - oauth2:
             - openid
             - profile
             - email
-      summary: Toggle image state
+      summary: Set snapshot general status
       tags:
-        - images
-  /images/{id}/general:
-    patch:
-      operationId: setImageGeneralStatus
-      parameters:
-        - description: Use with JWT to specify the organization ID
-          explode: false
-          in: header
-          name: X-Daytona-Organization-ID
-          required: false
-          schema:
-            type: string
-          style: simple
-        - description: Image ID
-          explode: false
-          in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          style: simple
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SetImageGeneralStatus'
-        required: true
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImageDto'
-          description: Image general status has been set
-      security:
-        - bearer: []
-        - oauth2:
-            - openid
-            - profile
-            - email
-      summary: Set image general status
-      tags:
-        - images
-  /images/{id}/build-logs:
+        - snapshots
+  /snapshots/{id}/build-logs:
     get:
-      operationId: getImageBuildLogs
+      operationId: getSnapshotBuildLogs
       parameters:
         - description: Use with JWT to specify the organization ID
           explode: false
@@ -3587,7 +4734,7 @@ paths:
           schema:
             type: string
           style: simple
-        - description: Image ID
+        - description: Snapshot ID
           explode: false
           in: path
           name: id
@@ -3612,13 +4759,224 @@ paths:
             - openid
             - profile
             - email
-      summary: Get image build logs
+      summary: Get snapshot build logs
       tags:
-        - images
-  /preview/{workspaceId}/public:
-    get:
-      operationId: isWorkspacePublic
+        - snapshots
+  /snapshots/{id}/activate:
+    post:
+      operationId: activateSnapshot
       parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: Snapshot ID
+          explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotDto'
+          description: The snapshot has been successfully activated.
+        '400':
+          description: "Bad request - Snapshot is already active, not in inactive\
+            \ state, or has associated snapshot runners"
+        '404':
+          description: Snapshot not found
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Activate a snapshot
+      tags:
+        - snapshots
+  /snapshots/{id}/deactivate:
+    post:
+      operationId: deactivateSnapshot
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: Snapshot ID
+          explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '204':
+          description: The snapshot has been successfully deactivated.
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Deactivate a snapshot
+      tags:
+        - snapshots
+  /workspace:
+    get:
+      deprecated: true
+      operationId: listWorkspaces_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: Include verbose output
+          explode: true
+          in: query
+          name: verbose
+          required: false
+          schema:
+            type: boolean
+          style: form
+        - description: JSON encoded labels to filter by
+          explode: true
+          in: query
+          name: labels
+          required: false
+          schema:
+            example: '{"label1": "value1", "label2": "value2"}'
+            type: string
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Workspace'
+                type: array
+          description: List of all workspacees
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] List all workspaces'
+      tags:
+        - workspace
+    post:
+      deprecated: true
+      operationId: createWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspace'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+          description: The workspace has been successfully created.
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Create a new workspace'
+      tags:
+        - workspace
+  /workspace/{workspaceId}:
+    delete:
+      deprecated: true
+      operationId: deleteWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - explode: true
+          in: query
+          name: force
+          required: true
+          schema:
+            type: boolean
+          style: form
+      responses:
+        '200':
+          description: Workspace has been deleted
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Delete workspace'
+      tags:
+        - workspace
+    get:
+      deprecated: true
+      operationId: getWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: Include verbose output
+          explode: true
+          in: query
+          name: verbose
+          required: false
+          schema:
+            type: boolean
+          style: form
         - description: ID of the workspace
           explode: false
           in: path
@@ -3632,15 +4990,30 @@ paths:
           content:
             application/json:
               schema:
-                type: boolean
-          description: Public status of the workspace
-      summary: Check if workspace is public
+                $ref: '#/components/schemas/Workspace'
+          description: Workspace details
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Get workspace details'
       tags:
-        - preview
-  /preview/{workspaceId}/validate/{authToken}:
-    get:
-      operationId: isValidAuthToken
+        - workspace
+  /workspace/{workspaceId}/start:
+    post:
+      deprecated: true
+      operationId: startWorkspace_deprecated
       parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
         - description: ID of the workspace
           explode: false
           in: path
@@ -3649,7 +5022,408 @@ paths:
           schema:
             type: string
           style: simple
-        - description: Auth token of the workspace
+      responses:
+        '200':
+          description: Workspace has been started
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Start workspace'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/stop:
+    post:
+      deprecated: true
+      operationId: stopWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          description: Workspace has been stopped
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Stop workspace'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/labels:
+    put:
+      deprecated: true
+      operationId: replaceLabelsWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxLabels'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxLabels'
+          description: Labels have been successfully replaced
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Replace workspace labels'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/backup:
+    post:
+      deprecated: true
+      operationId: createBackupWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+          description: Workspace backup has been initiated
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Create workspace backup'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/public/{isPublic}:
+    post:
+      deprecated: true
+      operationId: updatePublicStatusWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Public status to set
+          explode: false
+          in: path
+          name: isPublic
+          required: true
+          schema:
+            type: boolean
+          style: simple
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Update public status'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/autostop/{interval}:
+    post:
+      deprecated: true
+      operationId: setAutostopIntervalWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Auto-stop interval in minutes (0 to disable)
+          explode: false
+          in: path
+          name: interval
+          required: true
+          schema:
+            type: number
+          style: simple
+      responses:
+        '200':
+          description: Auto-stop interval has been set
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Set workspace auto-stop interval'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/autoarchive/{interval}:
+    post:
+      deprecated: true
+      operationId: setAutoArchiveIntervalWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Auto-archive interval in minutes (0 means the maximum interval
+            will be used)
+          explode: false
+          in: path
+          name: interval
+          required: true
+          schema:
+            type: number
+          style: simple
+      responses:
+        '200':
+          description: Auto-archive interval has been set
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Set workspace auto-archive interval'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/archive:
+    post:
+      deprecated: true
+      operationId: archiveWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          description: Workspace has been archived
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Archive workspace'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/ports/{port}/preview-url:
+    get:
+      deprecated: true
+      operationId: getPortPreviewUrlWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Port number to get preview URL for
+          explode: false
+          in: path
+          name: port
+          required: true
+          schema:
+            type: number
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortPreviewUrl'
+          description: Preview URL for the specified port
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Get preview URL for a workspace port'
+      tags:
+        - workspace
+  /workspace/{workspaceId}/build-logs:
+    get:
+      deprecated: true
+      operationId: getBuildLogsWorkspace_deprecated
+      parameters:
+        - description: Use with JWT to specify the organization ID
+          explode: false
+          in: header
+          name: X-Daytona-Organization-ID
+          required: false
+          schema:
+            type: string
+          style: simple
+        - description: ID of the workspace
+          explode: false
+          in: path
+          name: workspaceId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Whether to follow the logs stream
+          explode: true
+          in: query
+          name: follow
+          required: false
+          schema:
+            type: boolean
+          style: form
+      responses:
+        '200':
+          description: Build logs stream
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: '[DEPRECATED] Get build logs'
+      tags:
+        - workspace
+  /preview/{sandboxId}/public:
+    get:
+      operationId: isSandboxPublic
+      parameters:
+        - description: ID of the sandbox
+          explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: boolean
+          description: Public status of the sandbox
+      summary: Check if sandbox is public
+      tags:
+        - preview
+  /preview/{sandboxId}/validate/{authToken}:
+    get:
+      operationId: isValidAuthToken
+      parameters:
+        - description: ID of the sandbox
+          explode: false
+          in: path
+          name: sandboxId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: Auth token of the sandbox
           explode: false
           in: path
           name: authToken
@@ -3663,17 +5437,17 @@ paths:
             application/json:
               schema:
                 type: boolean
-          description: Workspace auth token validation status
-      summary: Check if workspace auth token is valid
+          description: Sandbox auth token validation status
+      summary: Check if sandbox auth token is valid
       tags:
         - preview
-  /preview/{workspaceId}/access:
+  /preview/{sandboxId}/access:
     get:
-      operationId: hasWorkspaceAccess
+      operationId: hasSandboxAccess
       parameters:
         - explode: false
           in: path
-          name: workspaceId
+          name: sandboxId
           required: true
           schema:
             type: string
@@ -3687,7 +5461,7 @@ paths:
             - openid
             - profile
             - email
-      summary: Check if user has access to the workspace
+      summary: Check if user has access to the sandbox
       tags:
         - preview
   /volumes:
@@ -3952,7 +5726,7 @@ paths:
             - openid
             - profile
             - email
-      summary: Get temporary registry access for pushing images
+      summary: Get temporary registry access for pushing snapshots
       tags:
         - docker-registry
   /docker-registry/{id}:
@@ -4126,6 +5900,111 @@ paths:
       summary: Get temporary storage access for pushing objects
       tags:
         - object-storage
+  /audit:
+    get:
+      operationId: getAllAuditLogs
+      parameters:
+        - description: 'Number of items per page (default: 10)'
+          explode: true
+          in: query
+          name: limit
+          required: false
+          schema:
+            type: number
+          style: form
+        - description: 'Page number (default: 1)'
+          explode: true
+          in: query
+          name: page
+          required: false
+          schema:
+            type: number
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogs'
+          description: Paginated list of all audit logs
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get all audit logs
+      tags:
+        - audit
+    post:
+      operationId: createAuditLog
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAuditLog'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
+          description: Audit log entry created successfully
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Create audit log entry
+      tags:
+        - audit
+  /audit/organizations/{organizationId}:
+    get:
+      operationId: getOrganizationAuditLogs
+      parameters:
+        - description: Organization ID
+          explode: false
+          in: path
+          name: organizationId
+          required: true
+          schema:
+            type: string
+          style: simple
+        - description: 'Number of items per page (default: 10)'
+          explode: true
+          in: query
+          name: limit
+          required: false
+          schema:
+            type: number
+          style: form
+        - description: 'Page number (default: 1)'
+          explode: true
+          in: query
+          name: page
+          required: false
+          schema:
+            type: number
+          style: form
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogs'
+          description: Paginated list of organization audit logs
+      security:
+        - bearer: []
+        - oauth2:
+            - openid
+            - profile
+            - email
+      summary: Get audit logs for organization
+      tags:
+        - audit
 components:
   schemas:
     CreateApiKey:
@@ -4134,6 +6013,7 @@ components:
           - write:registries
           - write:registries
         name: My API Key
+        expiresAt: 2025-06-09T12:00:00Z
       properties:
         name:
           description: The name of the API key
@@ -4146,15 +6026,22 @@ components:
             enum:
               - write:registries
               - delete:registries
-              - write:images
-              - delete:images
+              - write:snapshots
+              - delete:snapshots
               - write:sandboxes
               - delete:sandboxes
               - read:volumes
               - write:volumes
               - delete:volumes
+              - read:audit_logs
             type: string
           type: array
+        expiresAt:
+          description: When the API key expires
+          example: 2025-06-09T12:00:00Z
+          format: date-time
+          nullable: true
+          type: string
       required:
         - name
         - permissions
@@ -4167,6 +6054,7 @@ components:
           - write:registries
         name: My API Key
         value: bb_sk_1234567890abcdef
+        expiresAt: 2025-06-09T12:00:00Z
       properties:
         name:
           description: The name of the API key
@@ -4188,17 +6076,25 @@ components:
             enum:
               - write:registries
               - delete:registries
-              - write:images
-              - delete:images
+              - write:snapshots
+              - delete:snapshots
               - write:sandboxes
               - delete:sandboxes
               - read:volumes
               - write:volumes
               - delete:volumes
+              - read:audit_logs
             type: string
           type: array
+        expiresAt:
+          description: When the API key expires
+          example: 2025-06-09T12:00:00Z
+          format: date-time
+          nullable: true
+          type: string
       required:
         - createdAt
+        - expiresAt
         - name
         - permissions
         - value
@@ -4206,12 +6102,13 @@ components:
     ApiKeyList:
       example:
         createdAt: 2024-03-14T12:00:00Z
-        lastUsedAt: 2000-01-23T04:56:07.000+00:00
+        lastUsedAt: 2024-03-14T12:00:00Z
         permissions:
           - write:registries
           - write:registries
         name: My API Key
         value: bb_********************def
+        expiresAt: 2024-03-14T12:00:00Z
       properties:
         name:
           description: The name of the API key
@@ -4233,21 +6130,31 @@ components:
             enum:
               - write:registries
               - delete:registries
-              - write:images
-              - delete:images
+              - write:snapshots
+              - delete:snapshots
               - write:sandboxes
               - delete:sandboxes
               - read:volumes
               - write:volumes
               - delete:volumes
+              - read:audit_logs
             type: string
           type: array
         lastUsedAt:
+          description: When the API key was last used
+          example: 2024-03-14T12:00:00Z
+          format: date-time
+          nullable: true
+          type: string
+        expiresAt:
+          description: When the API key expires
+          example: 2024-03-14T12:00:00Z
           format: date-time
           nullable: true
           type: string
       required:
         - createdAt
+        - expiresAt
         - lastUsedAt
         - name
         - permissions
@@ -4280,13 +6187,14 @@ components:
             enum:
               - write:registries
               - delete:registries
-              - write:images
-              - delete:images
+              - write:snapshots
+              - delete:snapshots
               - write:sandboxes
               - delete:sandboxes
               - read:volumes
               - write:volumes
               - delete:volumes
+              - read:audit_logs
             type: string
           type: array
         isGlobal:
@@ -4413,15 +6321,22 @@ components:
       type: object
     Organization:
       example:
-        createdAt: 2000-01-23T04:56:07.000+00:00
-        suspendedUntil: 2000-01-23T04:56:07.000+00:00
-        createdBy: createdBy
+        totalCpuQuota: 6.027456183070403
         suspensionReason: suspensionReason
         suspendedAt: 2000-01-23T04:56:07.000+00:00
-        name: name
         personal: true
-        id: id
+        suspensionCleanupGracePeriodHours: 0.8008281904610115
         suspended: true
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        maxCpuPerSandbox: 5.637376656633329
+        suspendedUntil: 2000-01-23T04:56:07.000+00:00
+        maxDiskPerSandbox: 7.061401241503109
+        createdBy: createdBy
+        name: name
+        maxMemoryPerSandbox: 2.3021358869347655
+        id: id
+        totalMemoryQuota: 1.4658129805029452
+        totalDiskQuota: 5.962133916683182
         updatedAt: 2000-01-23T04:56:07.000+00:00
       properties:
         id:
@@ -4458,16 +6373,44 @@ components:
           description: Suspended until
           format: date-time
           type: string
+        suspensionCleanupGracePeriodHours:
+          description: Suspension cleanup grace period hours
+          type: number
+        totalCpuQuota:
+          description: Total CPU quota
+          type: number
+        totalMemoryQuota:
+          description: Total memory quota
+          type: number
+        totalDiskQuota:
+          description: Total disk quota
+          type: number
+        maxCpuPerSandbox:
+          description: Max CPU per sandbox
+          type: number
+        maxMemoryPerSandbox:
+          description: Max memory per sandbox
+          type: number
+        maxDiskPerSandbox:
+          description: Max disk per sandbox
+          type: number
       required:
         - createdAt
         - createdBy
         - id
+        - maxCpuPerSandbox
+        - maxDiskPerSandbox
+        - maxMemoryPerSandbox
         - name
         - personal
         - suspended
         - suspendedAt
         - suspendedUntil
+        - suspensionCleanupGracePeriodHours
         - suspensionReason
+        - totalCpuQuota
+        - totalDiskQuota
+        - totalMemoryQuota
         - updatedAt
       type: object
     UsageOverview:
@@ -4505,15 +6448,15 @@ components:
       type: object
     UpdateOrganizationQuota:
       example:
+        snapshotQuota: 7.061401241503109
         totalCpuQuota: 0.8008281904610115
-        imageQuota: 7.061401241503109
-        maxCpuPerWorkspace: 5.962133916683182
-        maxDiskPerWorkspace: 2.3021358869347655
+        maxCpuPerSandbox: 5.962133916683182
+        maxDiskPerSandbox: 2.3021358869347655
+        maxMemoryPerSandbox: 5.637376656633329
         volumeQuota: 3.616076749251911
-        maxImageSize: 9.301444243932576
         totalMemoryQuota: 6.027456183070403
+        maxSnapshotSize: 9.301444243932576
         totalDiskQuota: 1.4658129805029452
-        maxMemoryPerWorkspace: 5.637376656633329
       properties:
         totalCpuQuota:
           nullable: true
@@ -4524,30 +6467,30 @@ components:
         totalDiskQuota:
           nullable: true
           type: number
-        maxCpuPerWorkspace:
+        maxCpuPerSandbox:
           nullable: true
           type: number
-        maxMemoryPerWorkspace:
+        maxMemoryPerSandbox:
           nullable: true
           type: number
-        maxDiskPerWorkspace:
+        maxDiskPerSandbox:
           nullable: true
           type: number
-        imageQuota:
+        snapshotQuota:
           nullable: true
           type: number
-        maxImageSize:
+        maxSnapshotSize:
           nullable: true
           type: number
         volumeQuota:
           nullable: true
           type: number
       required:
-        - imageQuota
-        - maxCpuPerWorkspace
-        - maxDiskPerWorkspace
-        - maxImageSize
-        - maxMemoryPerWorkspace
+        - maxCpuPerSandbox
+        - maxDiskPerSandbox
+        - maxMemoryPerSandbox
+        - maxSnapshotSize
+        - snapshotQuota
         - totalCpuQuota
         - totalDiskQuota
         - totalMemoryQuota
@@ -4557,6 +6500,7 @@ components:
       example:
         reason: reason
         until: 2000-01-23T04:56:07.000+00:00
+        suspensionCleanupGracePeriodHours: 0.8008281904610115
       properties:
         reason:
           description: Suspension reason
@@ -4565,8 +6509,12 @@ components:
           description: Suspension until
           format: date-time
           type: string
+        suspensionCleanupGracePeriodHours:
+          description: Suspension cleanup grace period hours
+          type: number
       required:
         - reason
+        - suspensionCleanupGracePeriodHours
         - until
       type: object
     CreateOrganizationRole:
@@ -4591,13 +6539,14 @@ components:
             enum:
               - write:registries
               - delete:registries
-              - write:images
-              - delete:images
+              - write:snapshots
+              - delete:snapshots
               - write:sandboxes
               - delete:sandboxes
               - read:volumes
               - write:volumes
               - delete:volumes
+              - read:audit_logs
             type: string
           type: array
       required:
@@ -4627,13 +6576,14 @@ components:
             enum:
               - write:registries
               - delete:registries
-              - write:images
-              - delete:images
+              - write:snapshots
+              - delete:snapshots
               - write:sandboxes
               - delete:sandboxes
               - read:volumes
               - write:volumes
               - delete:volumes
+              - read:audit_logs
             type: string
           type: array
       required:
@@ -4820,6 +6770,7 @@ components:
       type: object
     User:
       example:
+        createdAt: 2000-01-23T04:56:07.000+00:00
         publicKeys:
           - name: name
             key: key
@@ -4843,7 +6794,12 @@ components:
           items:
             $ref: '#/components/schemas/UserPublicKey'
           type: array
+        createdAt:
+          description: Creation timestamp
+          format: date-time
+          type: string
       required:
+        - createdAt
         - email
         - id
         - name
@@ -4851,15 +6807,15 @@ components:
       type: object
     CreateOrganizationQuota:
       example:
+        snapshotQuota: 7.061401241503109
         totalCpuQuota: 0.8008281904610115
-        imageQuota: 7.061401241503109
-        maxCpuPerWorkspace: 5.962133916683182
-        maxDiskPerWorkspace: 2.3021358869347655
+        maxCpuPerSandbox: 5.962133916683182
+        maxDiskPerSandbox: 2.3021358869347655
+        maxMemoryPerSandbox: 5.637376656633329
         volumeQuota: 3.616076749251911
-        maxImageSize: 9.301444243932576
         totalMemoryQuota: 6.027456183070403
+        maxSnapshotSize: 9.301444243932576
         totalDiskQuota: 1.4658129805029452
-        maxMemoryPerWorkspace: 5.637376656633329
       properties:
         totalCpuQuota:
           type: number
@@ -4867,15 +6823,15 @@ components:
           type: number
         totalDiskQuota:
           type: number
-        maxCpuPerWorkspace:
+        maxCpuPerSandbox:
           type: number
-        maxMemoryPerWorkspace:
+        maxMemoryPerSandbox:
           type: number
-        maxDiskPerWorkspace:
+        maxDiskPerSandbox:
           type: number
-        imageQuota:
+        snapshotQuota:
           type: number
-        maxImageSize:
+        maxSnapshotSize:
           type: number
         volumeQuota:
           type: number
@@ -4887,15 +6843,15 @@ components:
         name: name
         id: id
         personalOrganizationQuota:
+          snapshotQuota: 7.061401241503109
           totalCpuQuota: 0.8008281904610115
-          imageQuota: 7.061401241503109
-          maxCpuPerWorkspace: 5.962133916683182
-          maxDiskPerWorkspace: 2.3021358869347655
+          maxCpuPerSandbox: 5.962133916683182
+          maxDiskPerSandbox: 2.3021358869347655
+          maxMemoryPerSandbox: 5.637376656633329
           volumeQuota: 3.616076749251911
-          maxImageSize: 9.301444243932576
           totalMemoryQuota: 6.027456183070403
+          maxSnapshotSize: 9.301444243932576
           totalDiskQuota: 1.4658129805029452
-          maxMemoryPerWorkspace: 5.637376656633329
         email: email
       properties:
         id:
@@ -4930,28 +6886,23 @@ components:
         - displayName
         - name
       type: object
-    WorkspaceInfo:
+    CreateLinkedAccount:
+      example:
+        provider: provider
+        userId: userId
       properties:
-        created:
-          description: The creation timestamp of the project
-          example: 2023-10-01T12:00:00Z
+        provider:
+          description: The authentication provider of the secondary account
           type: string
-        name:
-          default: ''
-          deprecated: true
-          description: 'Deprecated: The name of the workspace'
-          example: MyWorkspace
-          type: string
-        providerMetadata:
-          description: Additional metadata provided by the provider
-          example: '{"key": "value"}'
+        userId:
+          description: The user ID of the secondary account
           type: string
       required:
-        - created
-        - name
+        - provider
+        - userId
       type: object
-    WorkspaceState:
-      description: The state of the workspace
+    SandboxState:
+      description: The state of the sandbox
       enum:
         - creating
         - restoring
@@ -4962,14 +6913,24 @@ components:
         - starting
         - stopping
         - error
+        - build_failed
         - pending_build
-        - building_image
+        - building_snapshot
         - unknown
-        - pulling_image
+        - pulling_snapshot
         - archiving
         - archived
       type: string
-    WorkspaceVolume:
+    SandboxDesiredState:
+      description: The desired state of the sandbox
+      enum:
+        - destroyed
+        - started
+        - stopped
+        - resized
+        - archived
+      type: string
+    SandboxVolume:
       example:
         mountPath: /data
         volumeId: volume123
@@ -4986,10 +6947,53 @@ components:
         - mountPath
         - volumeId
       type: object
-    Workspace:
+    BuildInfo:
+      properties:
+        dockerfileContent:
+          description: The Dockerfile content used for the build
+          example: |-
+            FROM node:14
+            WORKDIR /app
+            COPY . .
+            RUN npm install
+            CMD ["npm", "start"]
+          type: string
+        contextHashes:
+          description: The context hashes used for the build
+          example:
+            - hash1
+            - hash2
+          items:
+            type: string
+          type: array
+        createdAt:
+          description: The creation timestamp
+          format: date-time
+          type: string
+        updatedAt:
+          description: The last update timestamp
+          format: date-time
+          type: string
+      required:
+        - createdAt
+        - updatedAt
+      type: object
+    Sandbox:
       example:
-        image: daytonaio/workspace:latest
         memory: 4
+        buildInfo: ''
+        autoStopInterval: 30
+        organizationId: organization123
+        createdAt: 2024-10-01T12:00:00Z
+        autoDeleteInterval: 30
+        public: false
+        errorReason: The sandbox is not running
+        runnerDomain: runner.example.com
+        id: sandbox123
+        state: creating
+        class: small
+        updatedAt: 2024-10-01T12:00:00Z
+        desiredState: destroyed
         volumes:
           - mountPath: /data
             volumeId: volume123
@@ -4998,40 +7002,29 @@ components:
         cpu: 2
         env:
           NODE_ENV: production
-        snapshotCreatedAt: 2024-10-01T12:00:00Z
         gpu: 0
-        autoStopInterval: 30
+        daemonVersion: 1.0.0
+        backupCreatedAt: 2024-10-01T12:00:00Z
         labels:
           daytona.io/public: 'true'
         target: local
-        organizationId: organization123
         disk: 10
-        snapshotState: None
-        public: false
-        errorReason: The workspace is not running
-        name: MyWorkspace
-        id: workspace123
-        state: creating
+        backupState: None
         user: daytona
-        info: ''
+        autoArchiveInterval: 10080
+        snapshot: daytonaio/sandbox:latest
       properties:
         id:
-          description: The ID of the workspace
-          example: workspace123
-          type: string
-        name:
-          default: ''
-          deprecated: true
-          description: The name of the workspace
-          example: MyWorkspace
+          description: The ID of the sandbox
+          example: sandbox123
           type: string
         organizationId:
-          description: The organization ID of the workspace
+          description: The organization ID of the sandbox
           example: organization123
           type: string
-        image:
-          description: The image used for the workspace
-          example: daytonaio/workspace:latest
+        snapshot:
+          description: The snapshot used for the sandbox
+          example: daytonaio/sandbox:latest
           type: string
         user:
           description: The user associated with the project
@@ -5040,56 +7033,57 @@ components:
         env:
           additionalProperties:
             type: string
-          description: Environment variables for the workspace
+          description: Environment variables for the sandbox
           example:
             NODE_ENV: production
           type: object
         labels:
           additionalProperties:
             type: string
-          description: Labels for the workspace
+          description: Labels for the sandbox
           example:
             daytona.io/public: 'true'
           type: object
         public:
-          description: Whether the workspace http preview is public
+          description: Whether the sandbox http preview is public
           example: false
           type: boolean
         target:
-          description: The target environment for the workspace
+          description: The target environment for the sandbox
           example: local
           type: string
-        info:
-          allOf:
-            - $ref: '#/components/schemas/WorkspaceInfo'
-          description: Additional information about the workspace
         cpu:
-          description: The CPU quota for the workspace
+          description: The CPU quota for the sandbox
           example: 2
           type: number
         gpu:
-          description: The GPU quota for the workspace
+          description: The GPU quota for the sandbox
           example: 0
           type: number
         memory:
-          description: The memory quota for the workspace
+          description: The memory quota for the sandbox
           example: 4
           type: number
         disk:
-          description: The disk quota for the workspace
+          description: The disk quota for the sandbox
           example: 10
           type: number
         state:
           allOf:
-            - $ref: '#/components/schemas/WorkspaceState'
-          description: The state of the workspace
+            - $ref: '#/components/schemas/SandboxState'
+          description: The state of the sandbox
           example: creating
+        desiredState:
+          allOf:
+            - $ref: '#/components/schemas/SandboxDesiredState'
+          description: The desired state of the sandbox
+          example: destroyed
         errorReason:
-          description: The error reason of the workspace
-          example: The workspace is not running
+          description: The error reason of the sandbox
+          example: The sandbox is not running
           type: string
-        snapshotState:
-          description: The state of the snapshot
+        backupState:
+          description: The state of the backup
           enum:
             - None
             - Pending
@@ -5098,24 +7092,65 @@ components:
             - Error
           example: None
           type: string
-        snapshotCreatedAt:
-          description: The creation timestamp of the last snapshot
+        backupCreatedAt:
+          description: The creation timestamp of the last backup
           example: 2024-10-01T12:00:00Z
           type: string
         autoStopInterval:
           description: Auto-stop interval in minutes (0 means disabled)
           example: 30
           type: number
+        autoArchiveInterval:
+          description: Auto-archive interval in minutes
+          example: 10080
+          type: number
+        autoDeleteInterval:
+          description: "Auto-delete interval in minutes (negative value means disabled,\
+            \ 0 means delete immediately upon stopping)"
+          example: 30
+          type: number
+        runnerDomain:
+          description: The domain name of the runner
+          example: runner.example.com
+          type: string
         volumes:
-          description: Array of volumes attached to the workspace
+          description: Array of volumes attached to the sandbox
           items:
-            $ref: '#/components/schemas/WorkspaceVolume'
+            $ref: '#/components/schemas/SandboxVolume'
           type: array
+        buildInfo:
+          allOf:
+            - $ref: '#/components/schemas/BuildInfo'
+          description: Build information for the sandbox
+        createdAt:
+          description: The creation timestamp of the sandbox
+          example: 2024-10-01T12:00:00Z
+          type: string
+        updatedAt:
+          description: The last update timestamp of the sandbox
+          example: 2024-10-01T12:00:00Z
+          type: string
+        class:
+          deprecated: true
+          description: The class of the sandbox
+          enum:
+            - small
+            - medium
+            - large
+          example: small
+          type: string
+        daemonVersion:
+          description: The version of the daemon running in the sandbox
+          example: 1.0.0
+          type: string
       required:
+        - cpu
+        - disk
         - env
+        - gpu
         - id
         - labels
-        - name
+        - memory
         - organizationId
         - public
         - target
@@ -5143,10 +7178,9 @@ components:
       required:
         - dockerfileContent
       type: object
-    CreateWorkspace:
+    CreateSandbox:
       example:
-        image: daytonaio/workspace:latest
-        memory: 4096
+        memory: 1
         buildInfo: ''
         volumes:
           - mountPath: /data
@@ -5160,15 +7194,18 @@ components:
         autoStopInterval: 30
         labels:
           daytona.io/public: 'true'
-        target: eu
-        disk: 20
+        target: us
+        disk: 3
+        autoDeleteInterval: 30
         public: false
         user: daytona
         class: small
+        autoArchiveInterval: 10080
+        snapshot: ubuntu-4vcpu-8ram-100gb
       properties:
-        image:
-          description: The image used for the workspace
-          example: daytonaio/workspace:latest
+        snapshot:
+          description: The ID or name of the snapshot used for the sandbox
+          example: ubuntu-4vcpu-8ram-100gb
           type: string
         user:
           description: The user associated with the project
@@ -5177,23 +7214,23 @@ components:
         env:
           additionalProperties:
             type: string
-          description: Environment variables for the workspace
+          description: Environment variables for the sandbox
           example:
             NODE_ENV: production
           type: object
         labels:
           additionalProperties:
             type: string
-          description: Labels for the workspace
+          description: Labels for the sandbox
           example:
             daytona.io/public: 'true'
           type: object
         public:
-          description: Whether the workspace http preview is publicly accessible
+          description: Whether the sandbox http preview is publicly accessible
           example: false
           type: boolean
         class:
-          description: The workspace class type
+          description: The sandbox class type
           enum:
             - small
             - medium
@@ -5201,44 +7238,50 @@ components:
           example: small
           type: string
         target:
-          description: The target (region) where the workspace will be created
-          enum:
-            - eu
-            - us
-            - asia
-          example: eu
+          description: The target (region) where the sandbox will be created
+          example: us
           type: string
         cpu:
-          description: CPU cores allocated to the workspace
+          description: CPU cores allocated to the sandbox
           example: 2
           type: integer
         gpu:
-          description: GPU units allocated to the workspace
+          description: GPU units allocated to the sandbox
           example: 1
           type: integer
         memory:
-          description: Memory allocated to the workspace in MB
-          example: 4096
+          description: Memory allocated to the sandbox in GB
+          example: 1
           type: integer
         disk:
-          description: Disk space allocated to the workspace in GB
-          example: 20
+          description: Disk space allocated to the sandbox in GB
+          example: 3
           type: integer
         autoStopInterval:
           description: Auto-stop interval in minutes (0 means disabled)
           example: 30
           type: integer
+        autoArchiveInterval:
+          description: Auto-archive interval in minutes (0 means the maximum interval
+            will be used)
+          example: 10080
+          type: integer
+        autoDeleteInterval:
+          description: "Auto-delete interval in minutes (negative value means disabled,\
+            \ 0 means delete immediately upon stopping)"
+          example: 30
+          type: integer
         volumes:
-          description: Array of volumes to attach to the workspace
+          description: Array of volumes to attach to the sandbox
           items:
-            $ref: '#/components/schemas/WorkspaceVolume'
+            $ref: '#/components/schemas/SandboxVolume'
           type: array
         buildInfo:
           allOf:
             - $ref: '#/components/schemas/CreateBuildInfo'
-          description: Build information for the workspace
+          description: Build information for the sandbox
       type: object
-    WorkspaceLabels:
+    SandboxLabels:
       example:
         labels:
           environment: dev
@@ -5257,46 +7300,55 @@ components:
       type: object
     PortPreviewUrl:
       example:
-        url: https://123456-myworkspace.node.com
+        url: https://123456-mysandbox.runner.com
+        legacyProxyUrl: https://3000-mysandbox.runner.com
         token: ul67qtv-jl6wb9z5o3eii-ljqt9qed6l
       properties:
         url:
           description: Preview url
-          example: https://123456-myworkspace.node.com
+          example: https://123456-mysandbox.runner.com
           type: string
         token:
           description: Access token
           example: ul67qtv-jl6wb9z5o3eii-ljqt9qed6l
           type: string
+        legacyProxyUrl:
+          description: Legacy preview url using runner domain
+          example: https://3000-mysandbox.runner.com
+          type: string
       required:
         - token
         - url
       type: object
-    CreateNode:
+    CreateRunner:
       example:
-        disk: 1.4658129805029452
-        memory: 6.027456183070403
-        apiUrl: apiUrl
+        diskGiB: 1.4658129805029452
         apiKey: apiKey
-        domain: domain
+        proxyUrl: proxyUrl
         cpu: 0.8008281904610115
-        region: eu
         gpu: 5.962133916683182
+        version: version
+        capacity: 5.637376656633329
+        apiUrl: apiUrl
+        memoryGiB: 6.027456183070403
+        domain: domain
+        region: us
         class: small
         gpuType: gpuType
-        capacity: 5.637376656633329
       properties:
         domain:
           type: string
         apiUrl:
           type: string
+        proxyUrl:
+          type: string
         apiKey:
           type: string
         cpu:
           type: number
-        memory:
+        memoryGiB:
           type: number
-        disk:
+        diskGiB:
           type: number
         gpu:
           type: number
@@ -5312,11 +7364,9 @@ components:
         capacity:
           type: number
         region:
-          enum:
-            - eu
-            - us
-            - asia
-          example: eu
+          example: us
+          type: string
+        version:
           type: string
       required:
         - apiKey
@@ -5324,12 +7374,218 @@ components:
         - capacity
         - class
         - cpu
+        - diskGiB
+        - domain
+        - gpu
+        - gpuType
+        - memoryGiB
+        - proxyUrl
+        - region
+        - version
+      type: object
+    SandboxClass:
+      description: The class of the runner
+      enum:
+        - small
+        - medium
+        - large
+      type: string
+    RunnerState:
+      description: The state of the runner
+      enum:
+        - initializing
+        - ready
+        - disabled
+        - decommissioned
+        - unresponsive
+      type: string
+    Runner:
+      example:
+        memory: 16
+        apiKey: api-key-123
+        currentMemoryUsagePercentage: 68.2
+        availabilityScore: 85
+        used: 2
+        capacity: 10
+        currentDiskUsagePercentage: 33.8
+        currentCpuUsagePercentage: 45.6
+        createdAt: 2023-10-01T12:00:00Z
+        apiUrl: https://api.runner1.example.com
+        id: runner123
+        state: initializing
+        unschedulable: false
+        class: small
+        currentAllocatedDiskGiB: 50000
+        currentAllocatedMemoryGiB: 8000
+        gpuType: gpuType
+        currentAllocatedCpu: 4000
+        updatedAt: 2023-10-01T12:00:00Z
+        proxyUrl: https://proxy.runner1.example.com
+        cpu: 8
+        gpu: 1
+        currentSnapshotCount: 12
+        version: '0'
+        disk: 100
+        domain: runner1.example.com
+        region: us
+        lastChecked: 2024-10-01T12:00:00Z
+      properties:
+        id:
+          description: The ID of the runner
+          example: runner123
+          type: string
+        domain:
+          description: The domain of the runner
+          example: runner1.example.com
+          type: string
+        apiUrl:
+          description: The API URL of the runner
+          example: https://api.runner1.example.com
+          type: string
+        proxyUrl:
+          description: The proxy URL of the runner
+          example: https://proxy.runner1.example.com
+          type: string
+        apiKey:
+          description: The API key for the runner
+          example: api-key-123
+          type: string
+        cpu:
+          description: The CPU capacity of the runner
+          example: 8
+          type: number
+        memory:
+          description: The memory capacity of the runner in GiB
+          example: 16
+          type: number
+        disk:
+          description: The disk capacity of the runner in GiB
+          example: 100
+          type: number
+        gpu:
+          description: The GPU capacity of the runner
+          example: 1
+          type: number
+        gpuType:
+          description: The type of GPU
+          type: string
+        class:
+          allOf:
+            - $ref: '#/components/schemas/SandboxClass'
+          description: The class of the runner
+          example: small
+        used:
+          description: The current usage of the runner
+          example: 2
+          type: number
+        capacity:
+          description: The capacity of the runner
+          example: 10
+          type: number
+        currentCpuUsagePercentage:
+          description: Current CPU usage percentage
+          example: 45.6
+          type: number
+        currentMemoryUsagePercentage:
+          description: Current RAM usage percentage
+          example: 68.2
+          type: number
+        currentDiskUsagePercentage:
+          description: Current disk usage percentage
+          example: 33.8
+          type: number
+        currentAllocatedCpu:
+          description: Current allocated CPU
+          example: 4000
+          type: number
+        currentAllocatedMemoryGiB:
+          description: Current allocated memory in GiB
+          example: 8000
+          type: number
+        currentAllocatedDiskGiB:
+          description: Current allocated disk in GiB
+          example: 50000
+          type: number
+        currentSnapshotCount:
+          description: Current snapshot count
+          example: 12
+          type: number
+        availabilityScore:
+          description: Runner availability score
+          example: 85
+          type: number
+        region:
+          description: The region of the runner
+          example: us
+          type: string
+        state:
+          allOf:
+            - $ref: '#/components/schemas/RunnerState'
+          description: The state of the runner
+          example: initializing
+        lastChecked:
+          description: The last time the runner was checked
+          example: 2024-10-01T12:00:00Z
+          type: string
+        unschedulable:
+          description: Whether the runner is unschedulable
+          example: false
+          type: boolean
+        createdAt:
+          description: The creation timestamp of the runner
+          example: 2023-10-01T12:00:00Z
+          type: string
+        updatedAt:
+          description: The last update timestamp of the runner
+          example: 2023-10-01T12:00:00Z
+          type: string
+        version:
+          description: The version of the runner
+          example: '0'
+          type: string
+      required:
+        - apiKey
+        - apiUrl
+        - capacity
+        - class
+        - cpu
+        - createdAt
         - disk
         - domain
         - gpu
         - gpuType
+        - id
         - memory
+        - proxyUrl
         - region
+        - state
+        - unschedulable
+        - updatedAt
+        - used
+        - version
+      type: object
+    RunnerSnapshotDto:
+      example:
+        runnerDomain: runner.example.com
+        runnerId: 123e4567-e89b-12d3-a456-426614174000
+        runnerSnapshotId: 123e4567-e89b-12d3-a456-426614174000
+      properties:
+        runnerSnapshotId:
+          description: Runner snapshot ID
+          example: 123e4567-e89b-12d3-a456-426614174000
+          type: string
+        runnerId:
+          description: Runner ID
+          example: 123e4567-e89b-12d3-a456-426614174000
+          type: string
+        runnerDomain:
+          description: Runner domain
+          example: runner.example.com
+          type: string
+      required:
+        - runnerDomain
+        - runnerId
+        - runnerSnapshotId
       type: object
     ProjectDirResponse:
       example:
@@ -5538,6 +7794,7 @@ components:
         author: author
         message: message
         email: email
+        allow_empty: false
       properties:
         path:
           type: string
@@ -5547,6 +7804,10 @@ components:
           type: string
         email:
           type: string
+        allow_empty:
+          default: false
+          description: Allow creating an empty commit when no changes are staged
+          type: boolean
       required:
         - author
         - email
@@ -5638,23 +7899,23 @@ components:
       type: object
     GitStatus:
       example:
-        FileStatus[]:
-          - extra: extra
-            name: name
-            staging: staging
-            worktree: worktree
-          - extra: extra
-            name: name
-            staging: staging
-            worktree: worktree
         behind: 6.027456183070403
+        fileStatus:
+          - extra: extra
+            name: name
+            staging: staging
+            worktree: worktree
+          - extra: extra
+            name: name
+            staging: staging
+            worktree: worktree
         ahead: 0.8008281904610115
         branchPublished: true
         currentBranch: currentBranch
       properties:
         currentBranch:
           type: string
-        FileStatus[]:
+        fileStatus:
           items:
             $ref: '#/components/schemas/FileStatus'
           type: array
@@ -5665,8 +7926,8 @@ components:
         branchPublished:
           type: boolean
       required:
-        - 'FileStatus[]'
         - currentBranch
+        - fileStatus
       type: object
     ExecuteRequest:
       example:
@@ -6014,46 +8275,638 @@ components:
         - languageId
         - pathToProject
       type: object
-    CreateImage:
+    ComputerUseStartResponse:
+      example:
+        message: Computer use processes started successfully
+        status:
+          xvfb:
+            running: true
+            priority: 100
+            autoRestart: true
+            pid: 12345
+          xfce4:
+            running: true
+            priority: 200
+            autoRestart: true
+            pid: 12346
+          x11vnc:
+            running: true
+            priority: 300
+            autoRestart: true
+            pid: 12347
+          novnc:
+            running: true
+            priority: 400
+            autoRestart: true
+            pid: 12348
+      properties:
+        message:
+          description: A message indicating the result of starting computer use processes
+          example: Computer use processes started successfully
+          type: string
+        status:
+          description: Status information about all VNC desktop processes after starting
+          example:
+            xvfb:
+              running: true
+              priority: 100
+              autoRestart: true
+              pid: 12345
+            xfce4:
+              running: true
+              priority: 200
+              autoRestart: true
+              pid: 12346
+            x11vnc:
+              running: true
+              priority: 300
+              autoRestart: true
+              pid: 12347
+            novnc:
+              running: true
+              priority: 400
+              autoRestart: true
+              pid: 12348
+          type: object
+      required:
+        - message
+        - status
+      type: object
+    ComputerUseStopResponse:
+      example:
+        message: Computer use processes stopped successfully
+        status:
+          xvfb:
+            running: false
+            priority: 100
+            autoRestart: true
+          xfce4:
+            running: false
+            priority: 200
+            autoRestart: true
+          x11vnc:
+            running: false
+            priority: 300
+            autoRestart: true
+          novnc:
+            running: false
+            priority: 400
+            autoRestart: true
+      properties:
+        message:
+          description: A message indicating the result of stopping computer use processes
+          example: Computer use processes stopped successfully
+          type: string
+        status:
+          description: Status information about all VNC desktop processes after stopping
+          example:
+            xvfb:
+              running: false
+              priority: 100
+              autoRestart: true
+            xfce4:
+              running: false
+              priority: 200
+              autoRestart: true
+            x11vnc:
+              running: false
+              priority: 300
+              autoRestart: true
+            novnc:
+              running: false
+              priority: 400
+              autoRestart: true
+          type: object
+      required:
+        - message
+        - status
+      type: object
+    ComputerUseStatusResponse:
+      example:
+        status: active
+      properties:
+        status:
+          description: "Status of computer use services (active, partial, inactive,\
+            \ error)"
+          enum:
+            - active
+            - partial
+            - inactive
+            - error
+          example: active
+          type: string
+      required:
+        - status
+      type: object
+    ProcessStatusResponse:
+      example:
+        running: true
+        processName: xfce4
+      properties:
+        processName:
+          description: The name of the VNC process being checked
+          example: xfce4
+          type: string
+        running:
+          description: Whether the specified VNC process is currently running
+          example: true
+          type: boolean
+      required:
+        - processName
+        - running
+      type: object
+    ProcessRestartResponse:
+      example:
+        processName: xfce4
+        message: Process xfce4 restarted successfully
+      properties:
+        message:
+          description: A message indicating the result of restarting the process
+          example: Process xfce4 restarted successfully
+          type: string
+        processName:
+          description: The name of the VNC process that was restarted
+          example: xfce4
+          type: string
+      required:
+        - message
+        - processName
+      type: object
+    ProcessLogsResponse:
+      example:
+        processName: novnc
+        logs: '2024-01-15 10:30:45 [INFO] NoVNC server started on port 6080'
+      properties:
+        processName:
+          description: The name of the VNC process whose logs were retrieved
+          example: novnc
+          type: string
+        logs:
+          description: The log output from the specified VNC process
+          example: '2024-01-15 10:30:45 [INFO] NoVNC server started on port 6080'
+          type: string
+      required:
+        - logs
+        - processName
+      type: object
+    ProcessErrorsResponse:
+      example:
+        processName: x11vnc
+        errors: '2024-01-15 10:30:45 [ERROR] Failed to bind to port 5901'
+      properties:
+        processName:
+          description: The name of the VNC process whose error logs were retrieved
+          example: x11vnc
+          type: string
+        errors:
+          description: The error log output from the specified VNC process
+          example: '2024-01-15 10:30:45 [ERROR] Failed to bind to port 5901'
+          type: string
+      required:
+        - errors
+        - processName
+      type: object
+    MousePosition:
+      example:
+        x: 100
+        'y': 200
+      properties:
+        x:
+          description: The X coordinate of the mouse cursor position
+          example: 100
+          type: number
+        'y':
+          description: The Y coordinate of the mouse cursor position
+          example: 200
+          type: number
+      required:
+        - x
+        - 'y'
+      type: object
+    MouseMoveRequest:
+      example:
+        x: 150
+        'y': 250
+      properties:
+        x:
+          description: The target X coordinate to move the mouse cursor to
+          example: 150
+          type: number
+        'y':
+          description: The target Y coordinate to move the mouse cursor to
+          example: 250
+          type: number
+      required:
+        - x
+        - 'y'
+      type: object
+    MouseMoveResponse:
+      example:
+        x: 150
+        'y': 250
+      properties:
+        x:
+          description: The actual X coordinate where the mouse cursor ended up
+          example: 150
+          type: number
+        'y':
+          description: The actual Y coordinate where the mouse cursor ended up
+          example: 250
+          type: number
+      required:
+        - x
+        - 'y'
+      type: object
+    MouseClickRequest:
+      example:
+        button: left
+        double: false
+        x: 100
+        'y': 200
+      properties:
+        x:
+          description: The X coordinate where to perform the mouse click
+          example: 100
+          type: number
+        'y':
+          description: The Y coordinate where to perform the mouse click
+          example: 200
+          type: number
+        button:
+          description: "The mouse button to click (left, right, middle). Defaults\
+            \ to left"
+          example: left
+          type: string
+        double:
+          description: Whether to perform a double-click instead of a single click
+          example: false
+          type: boolean
+      required:
+        - x
+        - 'y'
+      type: object
+    MouseClickResponse:
+      example:
+        x: 100
+        'y': 200
+      properties:
+        x:
+          description: The actual X coordinate where the click occurred
+          example: 100
+          type: number
+        'y':
+          description: The actual Y coordinate where the click occurred
+          example: 200
+          type: number
+      required:
+        - x
+        - 'y'
+      type: object
+    MouseDragRequest:
+      example:
+        button: left
+        endY: 400
+        endX: 300
+        startY: 200
+        startX: 100
+      properties:
+        startX:
+          description: The starting X coordinate for the drag operation
+          example: 100
+          type: number
+        startY:
+          description: The starting Y coordinate for the drag operation
+          example: 200
+          type: number
+        endX:
+          description: The ending X coordinate for the drag operation
+          example: 300
+          type: number
+        endY:
+          description: The ending Y coordinate for the drag operation
+          example: 400
+          type: number
+        button:
+          description: "The mouse button to use for dragging (left, right, middle).\
+            \ Defaults to left"
+          example: left
+          type: string
+      required:
+        - endX
+        - endY
+        - startX
+        - startY
+      type: object
+    MouseDragResponse:
+      example:
+        x: 300
+        'y': 400
+      properties:
+        x:
+          description: The actual X coordinate where the drag ended
+          example: 300
+          type: number
+        'y':
+          description: The actual Y coordinate where the drag ended
+          example: 400
+          type: number
+      required:
+        - x
+        - 'y'
+      type: object
+    MouseScrollRequest:
+      example:
+        amount: 3
+        x: 100
+        'y': 200
+        direction: down
+      properties:
+        x:
+          description: The X coordinate where to perform the scroll operation
+          example: 100
+          type: number
+        'y':
+          description: The Y coordinate where to perform the scroll operation
+          example: 200
+          type: number
+        direction:
+          description: 'The scroll direction (up, down)'
+          example: down
+          type: string
+        amount:
+          description: The number of scroll units to scroll. Defaults to 1
+          example: 3
+          type: number
+      required:
+        - direction
+        - x
+        - 'y'
+      type: object
+    MouseScrollResponse:
+      example:
+        success: true
+      properties:
+        success:
+          description: Whether the mouse scroll operation was successful
+          example: true
+          type: boolean
+      required:
+        - success
+      type: object
+    KeyboardTypeRequest:
+      example:
+        delay: 100
+        text: 'Hello, World!'
+      properties:
+        text:
+          description: The text to type using the keyboard
+          example: 'Hello, World!'
+          type: string
+        delay:
+          description: Delay in milliseconds between keystrokes. Defaults to 0
+          example: 100
+          type: number
+      required:
+        - text
+      type: object
+    KeyboardPressRequest:
+      example:
+        modifiers:
+          - ctrl
+          - shift
+        key: enter
+      properties:
+        key:
+          description: 'The key to press (e.g., a, b, c, enter, space, etc.)'
+          example: enter
+          type: string
+        modifiers:
+          description: "Array of modifier keys to press along with the main key (ctrl,\
+            \ alt, shift, cmd)"
+          example:
+            - ctrl
+            - shift
+          items:
+            type: string
+          type: array
+      required:
+        - key
+      type: object
+    KeyboardHotkeyRequest:
+      example:
+        keys: ctrl+c
+      properties:
+        keys:
+          description: "The hotkey combination to press (e.g., \"ctrl+c\", \"cmd+v\"\
+            , \"alt+tab\")"
+          example: ctrl+c
+          type: string
+      required:
+        - keys
+      type: object
+    ScreenshotResponse:
+      example:
+        cursorPosition:
+          x: 500
+          'y': 300
+        screenshot: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+        sizeBytes: 24576
+      properties:
+        screenshot:
+          description: Base64 encoded screenshot image data
+          example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+          type: string
+        cursorPosition:
+          description: The current cursor position when the screenshot was taken
+          example:
+            x: 500
+            'y': 300
+          type: object
+        sizeBytes:
+          description: The size of the screenshot data in bytes
+          example: 24576
+          type: number
+      required:
+        - screenshot
+      type: object
+    RegionScreenshotResponse:
+      example:
+        cursorPosition:
+          x: 500
+          'y': 300
+        screenshot: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+        sizeBytes: 24576
+      properties:
+        screenshot:
+          description: Base64 encoded screenshot image data of the specified region
+          example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+          type: string
+        cursorPosition:
+          description: The current cursor position when the region screenshot was
+            taken
+          example:
+            x: 500
+            'y': 300
+          type: object
+        sizeBytes:
+          description: The size of the screenshot data in bytes
+          example: 24576
+          type: number
+      required:
+        - screenshot
+      type: object
+    CompressedScreenshotResponse:
+      example:
+        cursorPosition:
+          x: 250
+          'y': 150
+        screenshot: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+        sizeBytes: 12288
+      properties:
+        screenshot:
+          description: Base64 encoded compressed screenshot image data
+          example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+          type: string
+        cursorPosition:
+          description: The current cursor position when the compressed screenshot
+            was taken
+          example:
+            x: 250
+            'y': 150
+          type: object
+        sizeBytes:
+          description: The size of the compressed screenshot data in bytes
+          example: 12288
+          type: number
+      required:
+        - screenshot
+      type: object
+    DisplayInfoResponse:
+      example:
+        displays:
+          - id: 0
+            x: 0
+            'y': 0
+            width: 1920
+            height: 1080
+            is_active: true
+      properties:
+        displays:
+          description: Array of display information for all connected displays
+          example:
+            - id: 0
+              x: 0
+              'y': 0
+              width: 1920
+              height: 1080
+              is_active: true
+          items:
+            type: object
+          type: array
+      required:
+        - displays
+      type: object
+    WindowsResponse:
+      example:
+        count: 5
+        windows:
+          - id: 12345
+            title: Terminal
+      properties:
+        windows:
+          description: Array of window information for all visible windows
+          example:
+            - id: 12345
+              title: Terminal
+          items:
+            type: object
+          type: array
+        count:
+          description: The total number of windows found
+          example: 5
+          type: number
+      required:
+        - count
+        - windows
+      type: object
+    CreateSnapshot:
       example:
         general: true
+        disk: 3
+        imageName: ubuntu:22.04
+        memory: 1
+        buildInfo: ''
         entrypoint: sleep infinity
-        name: my-docker-image:8.0.1-alpha
+        name: ubuntu-4vcpu-8ram-100gb
+        cpu: 1
+        gpu: 0
       properties:
         name:
-          description: The name of the image
-          example: my-docker-image:8.0.1-alpha
+          description: The name of the snapshot
+          example: ubuntu-4vcpu-8ram-100gb
+          type: string
+        imageName:
+          description: The image name of the snapshot
+          example: ubuntu:22.04
           type: string
         entrypoint:
-          description: The entrypoint command for the image
+          description: The entrypoint command for the snapshot
           example: sleep infinity
           items:
             type: string
           type: array
         general:
-          description: Whether the image is general
+          description: Whether the snapshot is general
           type: boolean
+        cpu:
+          description: CPU cores allocated to the resulting sandbox
+          example: 1
+          type: integer
+        gpu:
+          description: GPU units allocated to the resulting sandbox
+          example: 0
+          type: integer
+        memory:
+          description: Memory allocated to the resulting sandbox in GB
+          example: 1
+          type: integer
+        disk:
+          description: Disk space allocated to the sandbox in GB
+          example: 3
+          type: integer
+        buildInfo:
+          allOf:
+            - $ref: '#/components/schemas/CreateBuildInfo'
+          description: Build information for the snapshot
       required:
         - name
       type: object
-    ImageState:
+    SnapshotState:
       enum:
         - build_pending
         - building
         - pending
-        - pulling_image
+        - pulling
         - pending_validation
         - validating
         - active
+        - inactive
         - error
+        - build_failed
         - removing
       type: string
-    ImageDto:
+    SnapshotDto:
       example:
+        imageName: imageName
+        buildInfo: ''
+        cpu: 6.027456183070403
+        gpu: 1.4658129805029452
         organizationId: organizationId
         general: true
         createdAt: 2000-01-23T04:56:07.000+00:00
+        disk: 5.637376656633329
         size: 0.8008281904610115
+        mem: 5.962133916683182
         lastUsedAt: 2000-01-23T04:56:07.000+00:00
         entrypoint:
           - entrypoint
@@ -6062,7 +8915,6 @@ components:
         name: name
         id: id
         state: ''
-        enabled: true
         updatedAt: 2000-01-23T04:56:07.000+00:00
       properties:
         id:
@@ -6073,11 +8925,11 @@ components:
           type: boolean
         name:
           type: string
-        enabled:
-          type: boolean
+        imageName:
+          type: string
         state:
           allOf:
-            - $ref: '#/components/schemas/ImageState'
+            - $ref: '#/components/schemas/SnapshotState'
         size:
           nullable: true
           type: number
@@ -6086,6 +8938,14 @@ components:
             type: string
           nullable: true
           type: array
+        cpu:
+          type: number
+        gpu:
+          type: number
+        mem:
+          type: number
+        disk:
+          type: number
         errorReason:
           nullable: true
           type: string
@@ -6099,57 +8959,42 @@ components:
           format: date-time
           nullable: true
           type: string
+        buildInfo:
+          allOf:
+            - $ref: '#/components/schemas/BuildInfo'
+          description: Build information for the snapshot
       required:
+        - cpu
         - createdAt
-        - enabled
+        - disk
         - entrypoint
         - errorReason
         - general
+        - gpu
         - id
         - lastUsedAt
+        - mem
         - name
         - size
         - state
         - updatedAt
       type: object
-    BuildImage:
+    PaginatedSnapshotsDto:
       example:
-        buildInfo: ''
-        name: my-custom-image:1.0.0
-      properties:
-        name:
-          description: The name of the image to build
-          example: my-custom-image:1.0.0
-          type: string
-        buildInfo:
-          allOf:
-            - $ref: '#/components/schemas/CreateBuildInfo'
-          description: Build information for the image
-      required:
-        - buildInfo
-        - name
-      type: object
-    ToggleState:
-      example:
-        enabled: true
-      properties:
-        enabled:
-          description: Enable or disable the image/tag
-          example: true
-          type: boolean
-      required:
-        - enabled
-      type: object
-    PaginatedImagesDto:
-      example:
-        total: 6.027456183070403
-        totalPages: 5.962133916683182
-        page: 1.4658129805029452
+        total: 2.3021358869347655
+        totalPages: 9.301444243932576
+        page: 7.061401241503109
         items:
-          - organizationId: organizationId
+          - imageName: imageName
+            buildInfo: ''
+            cpu: 6.027456183070403
+            gpu: 1.4658129805029452
+            organizationId: organizationId
             general: true
             createdAt: 2000-01-23T04:56:07.000+00:00
+            disk: 5.637376656633329
             size: 0.8008281904610115
+            mem: 5.962133916683182
             lastUsedAt: 2000-01-23T04:56:07.000+00:00
             entrypoint:
               - entrypoint
@@ -6158,12 +9003,17 @@ components:
             name: name
             id: id
             state: ''
-            enabled: true
             updatedAt: 2000-01-23T04:56:07.000+00:00
-          - organizationId: organizationId
+          - imageName: imageName
+            buildInfo: ''
+            cpu: 6.027456183070403
+            gpu: 1.4658129805029452
+            organizationId: organizationId
             general: true
             createdAt: 2000-01-23T04:56:07.000+00:00
+            disk: 5.637376656633329
             size: 0.8008281904610115
+            mem: 5.962133916683182
             lastUsedAt: 2000-01-23T04:56:07.000+00:00
             entrypoint:
               - entrypoint
@@ -6172,12 +9022,11 @@ components:
             name: name
             id: id
             state: ''
-            enabled: true
             updatedAt: 2000-01-23T04:56:07.000+00:00
       properties:
         items:
           items:
-            $ref: '#/components/schemas/ImageDto'
+            $ref: '#/components/schemas/SnapshotDto'
           type: array
         total:
           type: number
@@ -6191,16 +9040,348 @@ components:
         - total
         - totalPages
       type: object
-    SetImageGeneralStatus:
+    SetSnapshotGeneralStatusDto:
       example:
         general: true
       properties:
         general:
-          description: Whether the image is general
+          description: Whether the snapshot is general
           example: true
           type: boolean
       required:
         - general
+      type: object
+    SandboxInfo:
+      properties:
+        created:
+          description: The creation timestamp of the project
+          example: 2023-10-01T12:00:00Z
+          type: string
+        name:
+          default: ''
+          deprecated: true
+          description: 'Deprecated: The name of the sandbox'
+          example: MySandbox
+          type: string
+        providerMetadata:
+          description: Additional metadata provided by the provider
+          example: '{"key": "value"}'
+          type: string
+      required:
+        - created
+        - name
+      type: object
+    Workspace:
+      example:
+        memory: 4
+        buildInfo: ''
+        autoStopInterval: 30
+        organizationId: organization123
+        createdAt: 2024-10-01T12:00:00Z
+        autoDeleteInterval: 30
+        snapshotState: None
+        public: false
+        errorReason: The sandbox is not running
+        runnerDomain: runner.example.com
+        id: sandbox123
+        state: creating
+        class: small
+        updatedAt: 2024-10-01T12:00:00Z
+        info: ''
+        desiredState: destroyed
+        image: daytonaio/workspace:latest
+        volumes:
+          - mountPath: /data
+            volumeId: volume123
+          - mountPath: /data
+            volumeId: volume123
+        cpu: 2
+        env:
+          NODE_ENV: production
+        snapshotCreatedAt: 2024-10-01T12:00:00Z
+        gpu: 0
+        daemonVersion: 1.0.0
+        backupCreatedAt: 2024-10-01T12:00:00Z
+        labels:
+          daytona.io/public: 'true'
+        target: local
+        disk: 10
+        name: MyWorkspace
+        backupState: None
+        user: daytona
+        autoArchiveInterval: 10080
+        snapshot: daytonaio/sandbox:latest
+      properties:
+        id:
+          description: The ID of the sandbox
+          example: sandbox123
+          type: string
+        organizationId:
+          description: The organization ID of the sandbox
+          example: organization123
+          type: string
+        snapshot:
+          description: The snapshot used for the sandbox
+          example: daytonaio/sandbox:latest
+          type: string
+        user:
+          description: The user associated with the project
+          example: daytona
+          type: string
+        env:
+          additionalProperties:
+            type: string
+          description: Environment variables for the sandbox
+          example:
+            NODE_ENV: production
+          type: object
+        labels:
+          additionalProperties:
+            type: string
+          description: Labels for the sandbox
+          example:
+            daytona.io/public: 'true'
+          type: object
+        public:
+          description: Whether the sandbox http preview is public
+          example: false
+          type: boolean
+        target:
+          description: The target environment for the sandbox
+          example: local
+          type: string
+        cpu:
+          description: The CPU quota for the sandbox
+          example: 2
+          type: number
+        gpu:
+          description: The GPU quota for the sandbox
+          example: 0
+          type: number
+        memory:
+          description: The memory quota for the sandbox
+          example: 4
+          type: number
+        disk:
+          description: The disk quota for the sandbox
+          example: 10
+          type: number
+        state:
+          allOf:
+            - $ref: '#/components/schemas/SandboxState'
+          description: The state of the sandbox
+          example: creating
+        desiredState:
+          allOf:
+            - $ref: '#/components/schemas/SandboxDesiredState'
+          description: The desired state of the sandbox
+          example: destroyed
+        errorReason:
+          description: The error reason of the sandbox
+          example: The sandbox is not running
+          type: string
+        backupState:
+          description: The state of the backup
+          enum:
+            - None
+            - Pending
+            - InProgress
+            - Completed
+            - Error
+          example: None
+          type: string
+        backupCreatedAt:
+          description: The creation timestamp of the last backup
+          example: 2024-10-01T12:00:00Z
+          type: string
+        autoStopInterval:
+          description: Auto-stop interval in minutes (0 means disabled)
+          example: 30
+          type: number
+        autoArchiveInterval:
+          description: Auto-archive interval in minutes
+          example: 10080
+          type: number
+        autoDeleteInterval:
+          description: "Auto-delete interval in minutes (negative value means disabled,\
+            \ 0 means delete immediately upon stopping)"
+          example: 30
+          type: number
+        runnerDomain:
+          description: The domain name of the runner
+          example: runner.example.com
+          type: string
+        volumes:
+          description: Array of volumes attached to the sandbox
+          items:
+            $ref: '#/components/schemas/SandboxVolume'
+          type: array
+        buildInfo:
+          allOf:
+            - $ref: '#/components/schemas/BuildInfo'
+          description: Build information for the sandbox
+        createdAt:
+          description: The creation timestamp of the sandbox
+          example: 2024-10-01T12:00:00Z
+          type: string
+        updatedAt:
+          description: The last update timestamp of the sandbox
+          example: 2024-10-01T12:00:00Z
+          type: string
+        class:
+          deprecated: true
+          description: The class of the sandbox
+          enum:
+            - small
+            - medium
+            - large
+          example: small
+          type: string
+        daemonVersion:
+          description: The version of the daemon running in the sandbox
+          example: 1.0.0
+          type: string
+        name:
+          default: ''
+          description: The name of the workspace
+          example: MyWorkspace
+          type: string
+        image:
+          description: The image used for the workspace
+          example: daytonaio/workspace:latest
+          type: string
+        snapshotState:
+          description: The state of the snapshot
+          enum:
+            - None
+            - Pending
+            - InProgress
+            - Completed
+            - Error
+          example: None
+          type: string
+        snapshotCreatedAt:
+          description: The creation timestamp of the last snapshot
+          example: 2024-10-01T12:00:00Z
+          type: string
+        info:
+          allOf:
+            - $ref: '#/components/schemas/SandboxInfo'
+          description: Additional information about the sandbox
+      required:
+        - cpu
+        - disk
+        - env
+        - gpu
+        - id
+        - labels
+        - memory
+        - name
+        - organizationId
+        - public
+        - target
+        - user
+      type: object
+    CreateWorkspace:
+      example:
+        image: daytonaio/workspace:latest
+        memory: 1
+        buildInfo: ''
+        volumes:
+          - mountPath: /data
+            volumeId: volume123
+          - mountPath: /data
+            volumeId: volume123
+        cpu: 2
+        env:
+          NODE_ENV: production
+        gpu: 1
+        autoStopInterval: 30
+        labels:
+          daytona.io/public: 'true'
+        target: eu
+        disk: 3
+        public: false
+        user: daytona
+        class: small
+        autoArchiveInterval: 10080
+      properties:
+        image:
+          description: The image used for the workspace
+          example: daytonaio/workspace:latest
+          type: string
+        user:
+          description: The user associated with the project
+          example: daytona
+          type: string
+        env:
+          additionalProperties:
+            type: string
+          description: Environment variables for the workspace
+          example:
+            NODE_ENV: production
+          type: object
+        labels:
+          additionalProperties:
+            type: string
+          description: Labels for the workspace
+          example:
+            daytona.io/public: 'true'
+          type: object
+        public:
+          description: Whether the workspace http preview is publicly accessible
+          example: false
+          type: boolean
+        class:
+          description: The workspace class type
+          enum:
+            - small
+            - medium
+            - large
+          example: small
+          type: string
+        target:
+          description: The target (region) where the workspace will be created
+          enum:
+            - eu
+            - us
+            - asia
+          example: eu
+          type: string
+        cpu:
+          description: CPU cores allocated to the workspace
+          example: 2
+          type: integer
+        gpu:
+          description: GPU units allocated to the workspace
+          example: 1
+          type: integer
+        memory:
+          description: Memory allocated to the workspace in GB
+          example: 1
+          type: integer
+        disk:
+          description: Disk space allocated to the workspace in GB
+          example: 3
+          type: integer
+        autoStopInterval:
+          description: Auto-stop interval in minutes (0 means disabled)
+          example: 30
+          type: integer
+        autoArchiveInterval:
+          description: Auto-archive interval in minutes (0 means the maximum interval
+            will be used)
+          example: 10080
+          type: integer
+        volumes:
+          description: Array of volumes to attach to the workspace
+          items:
+            $ref: '#/components/schemas/SandboxVolume'
+          type: array
+        buildInfo:
+          allOf:
+            - $ref: '#/components/schemas/CreateBuildInfo'
+          description: Build information for the workspace
       type: object
     VolumeState:
       description: Volume state
@@ -6252,6 +9433,7 @@ components:
         lastUsedAt:
           description: Last used timestamp
           example: 2023-01-01T00:00:00.000Z
+          nullable: true
           type: string
         errorReason:
           description: The error reason of the volume
@@ -6262,7 +9444,6 @@ components:
         - createdAt
         - errorReason
         - id
-        - lastUsedAt
         - name
         - organizationId
         - state
@@ -6279,9 +9460,9 @@ components:
       type: object
     CreateDockerRegistry:
       example:
-        registryType: internal
+        registryType: organization
         password: password
-        isDefault: false
+        isDefault: true
         name: name
         project: project
         url: url
@@ -6303,7 +9484,7 @@ components:
           description: Registry project
           type: string
         registryType:
-          default: internal
+          default: organization
           description: Registry type
           enum:
             - internal
@@ -6312,14 +9493,11 @@ components:
             - transient
           type: string
         isDefault:
-          default: false
           description: Set as default registry
           type: boolean
       required:
-        - isDefault
         - name
         - password
-        - project
         - registryType
         - url
         - username
@@ -6429,10 +9607,15 @@ components:
       example:
         password: password
         name: name
+        project: project
+        url: url
         username: username
       properties:
         name:
           description: Registry name
+          type: string
+        url:
+          description: Registry URL
           type: string
         username:
           description: Registry username
@@ -6440,8 +9623,12 @@ components:
         password:
           description: Registry password
           type: string
+        project:
+          description: Registry project
+          type: string
       required:
         - name
+        - url
         - username
       type: object
     StorageAccessDto:
@@ -6484,6 +9671,207 @@ components:
         - secret
         - sessionToken
         - storageUrl
+      type: object
+    AuditLog:
+      example:
+        metadata:
+          key: ''
+        targetId: targetId
+        errorMessage: errorMessage
+        ipAddress: ipAddress
+        actorEmail: actorEmail
+        targetType: targetType
+        userAgent: userAgent
+        source: source
+        organizationId: organizationId
+        createdAt: 2000-01-23T04:56:07.000+00:00
+        actorId: actorId
+        action: action
+        id: id
+        statusCode: 0.8008281904610115
+      properties:
+        id:
+          type: string
+        actorId:
+          type: string
+        actorEmail:
+          type: string
+        organizationId:
+          type: string
+        action:
+          type: string
+        targetType:
+          type: string
+        targetId:
+          type: string
+        statusCode:
+          type: number
+        errorMessage:
+          type: string
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        source:
+          type: string
+        metadata:
+          additionalProperties: true
+          type: object
+        createdAt:
+          format: date-time
+          type: string
+      required:
+        - action
+        - actorEmail
+        - actorId
+        - createdAt
+        - id
+      type: object
+    PaginatedAuditLogs:
+      example:
+        total: 6.027456183070403
+        totalPages: 5.962133916683182
+        page: 1.4658129805029452
+        items:
+          - metadata:
+              key: ''
+            targetId: targetId
+            errorMessage: errorMessage
+            ipAddress: ipAddress
+            actorEmail: actorEmail
+            targetType: targetType
+            userAgent: userAgent
+            source: source
+            organizationId: organizationId
+            createdAt: 2000-01-23T04:56:07.000+00:00
+            actorId: actorId
+            action: action
+            id: id
+            statusCode: 0.8008281904610115
+          - metadata:
+              key: ''
+            targetId: targetId
+            errorMessage: errorMessage
+            ipAddress: ipAddress
+            actorEmail: actorEmail
+            targetType: targetType
+            userAgent: userAgent
+            source: source
+            organizationId: organizationId
+            createdAt: 2000-01-23T04:56:07.000+00:00
+            actorId: actorId
+            action: action
+            id: id
+            statusCode: 0.8008281904610115
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AuditLog'
+          type: array
+        total:
+          type: number
+        page:
+          type: number
+        totalPages:
+          type: number
+      required:
+        - items
+        - page
+        - total
+        - totalPages
+      type: object
+    CreateAuditLog:
+      example:
+        organizationId: organizationId
+        actorId: actorId
+        targetId: targetId
+        actorEmail: actorEmail
+        action: create
+        targetType: api_key
+      properties:
+        actorId:
+          type: string
+        actorEmail:
+          type: string
+        organizationId:
+          type: string
+        action:
+          enum:
+            - create
+            - read
+            - update
+            - delete
+            - login
+            - set_default
+            - update_role
+            - update_assigned_roles
+            - update_quota
+            - suspend
+            - unsuspend
+            - accept
+            - decline
+            - link_account
+            - unlink_account
+            - leave_organization
+            - regenerate_key_pair
+            - update_scheduling
+            - start
+            - stop
+            - replace_labels
+            - create_backup
+            - update_public_status
+            - set_auto_stop_interval
+            - set_auto_archive_interval
+            - set_auto_delete_interval
+            - archive
+            - get_port_preview_url
+            - set_general_status
+            - activate
+            - deactivate
+            - toolbox_delete_file
+            - toolbox_download_file
+            - toolbox_create_folder
+            - toolbox_move_file
+            - toolbox_set_file_permissions
+            - toolbox_replace_in_files
+            - toolbox_upload_file
+            - toolbox_bulk_upload_files
+            - toolbox_git_add_files
+            - toolbox_git_create_branch
+            - toolbox_git_delete_branch
+            - toolbox_git_clone_repository
+            - toolbox_git_commit_changes
+            - toolbox_git_pull_changes
+            - toolbox_git_push_changes
+            - toolbox_git_checkout_branch
+            - toolbox_execute_command
+            - toolbox_create_session
+            - toolbox_session_execute_command
+            - toolbox_delete_session
+            - toolbox_computer_use_start
+            - toolbox_computer_use_stop
+            - toolbox_computer_use_restart_process
+          type: string
+        targetType:
+          enum:
+            - api_key
+            - organization
+            - organization_invitation
+            - organization_role
+            - organization_user
+            - docker_registry
+            - runner
+            - sandbox
+            - snapshot
+            - user
+            - volume
+          type: string
+        targetId:
+          type: string
+      required:
+        - action
+        - actorEmail
+        - actorId
       type: object
     uploadFile_request:
       properties:

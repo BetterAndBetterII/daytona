@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0
  */
 
-import { Loader2, AlertTriangle, MoreHorizontal, CheckCircle, Timer } from 'lucide-react'
+import { Loader2, AlertTriangle, MoreHorizontal, CheckCircle, Timer, HardDrive } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { OrganizationRolePermissionsEnum, VolumeDto, VolumeState } from '@daytonaio/api-client'
 import {
@@ -31,6 +31,7 @@ import { Pagination } from '@/components/Pagination'
 import { DEFAULT_PAGE_SIZE } from '@/constants/Pagination'
 import { useSelectedOrganization } from '@/hooks/useSelectedOrganization'
 import { getRelativeTimeString } from '@/lib/utils'
+import { TableEmptyState } from './TableEmptyState'
 
 interface VolumeTableProps {
   data: VolumeDto[]
@@ -101,7 +102,7 @@ export function VolumeTable({ data, loading, processingVolumeAction, onDelete, o
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead className="px-2" key={header.id}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   )
@@ -124,60 +125,76 @@ export function VolumeTable({ data, loading, processingVolumeAction, onDelete, o
                   className={`${processingVolumeAction[row.original.id] || row.original.state === VolumeState.PENDING_DELETE || row.original.state === VolumeState.DELETING ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell className="px-2" key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
-              !loading && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )
+              <TableEmptyState
+                colSpan={columns.length}
+                message="No Volumes yet."
+                icon={<HardDrive className="w-8 h-8" />}
+                description={
+                  <div className="space-y-2">
+                    <p>
+                      Volumes are shared, persistent directories backed by S3-compatible storage, perfect for reusing
+                      datasets, caching dependencies, or passing files across sandboxes.
+                    </p>
+                    <p>
+                      Create one via the SDK or CLI. <br />
+                      <a
+                        href="https://www.daytona.io/docs/volumes"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Read the Volumes guide
+                      </a>{' '}
+                      to learn more.
+                    </p>
+                  </div>
+                }
+              />
             )}
           </TableBody>
         </Table>
       </div>
       <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="flex items-center space-x-2">
-          {table.getRowModel().rows.some((row) => row.getIsSelected()) && (
-            <div className="flex items-center space-x-2">
-              <Popover open={bulkDeleteConfirmationOpen} onOpenChange={setBulkDeleteConfirmationOpen}>
-                <PopoverTrigger>
-                  <Button variant="destructive" size="sm" className="h-8">
-                    Bulk Delete
+        {table.getRowModel().rows.some((row) => row.getIsSelected()) && (
+          <Popover open={bulkDeleteConfirmationOpen} onOpenChange={setBulkDeleteConfirmationOpen}>
+            <PopoverTrigger>
+              <Button variant="destructive" size="sm" className="h-8">
+                Bulk Delete
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top">
+              <div className="flex flex-col gap-4">
+                <p>Are you sure you want to delete these Volumes?</p>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      onBulkDelete(
+                        table
+                          .getRowModel()
+                          .rows.filter((row) => row.getIsSelected())
+                          .map((row) => row.original),
+                      )
+                      setBulkDeleteConfirmationOpen(false)
+                    }}
+                  >
+                    Delete
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent side="top">
-                  <div className="flex flex-col gap-4">
-                    <p>Are you sure you want to delete these Volumes?</p>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          onBulkDelete(
-                            table
-                              .getRowModel()
-                              .rows.filter((row) => row.getIsSelected())
-                              .map((row) => row.original),
-                          )
-                          setBulkDeleteConfirmationOpen(false)
-                        }}
-                      >
-                        Delete
-                      </Button>
-                      <Button variant="outline" onClick={() => setBulkDeleteConfirmationOpen(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-        </div>
+                  <Button variant="outline" onClick={() => setBulkDeleteConfirmationOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
         <Pagination table={table} selectionEnabled entityName="Volumes" />
       </div>
     </div>
@@ -287,7 +304,7 @@ const getColumns = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <div className={`flex items-center gap-2 px-2 ${color}`}>
+                  <div className={`flex items-center gap-2 ${color}`}>
                     {getStateIcon(state)}
                     {getStateLabel(state)}
                   </div>
@@ -301,7 +318,7 @@ const getColumns = ({
         }
 
         return (
-          <div className={`flex items-center gap-2 px-2 w-40 ${color}`}>
+          <div className={`flex items-center gap-2 w-40 ${color}`}>
             {getStateIcon(state)}
             <span>{getStateLabel(state)}</span>
           </div>

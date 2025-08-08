@@ -42,18 +42,25 @@ export interface ApiKeyResponse {
    * @memberof ApiKeyResponse
    */
   permissions: Array<ApiKeyResponsePermissionsEnum>
+  /**
+   * When the API key expires
+   * @type {Date}
+   * @memberof ApiKeyResponse
+   */
+  expiresAt: Date | null
 }
 
 export const ApiKeyResponsePermissionsEnum = {
   WRITE_REGISTRIES: 'write:registries',
   DELETE_REGISTRIES: 'delete:registries',
-  WRITE_IMAGES: 'write:images',
-  DELETE_IMAGES: 'delete:images',
+  WRITE_SNAPSHOTS: 'write:snapshots',
+  DELETE_SNAPSHOTS: 'delete:snapshots',
   WRITE_SANDBOXES: 'write:sandboxes',
   DELETE_SANDBOXES: 'delete:sandboxes',
   READ_VOLUMES: 'read:volumes',
   WRITE_VOLUMES: 'write:volumes',
   DELETE_VOLUMES: 'delete:volumes',
+  READ_AUDIT_LOGS: 'read:audit_logs',
 } as const
 
 export type ApiKeyResponsePermissionsEnum =

@@ -5,12 +5,14 @@
 
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { WorkspaceUsagePeriod } from './entities/workspace-usage-period.entity'
+import { SandboxUsagePeriod } from './entities/sandbox-usage-period.entity'
 import { UsageService } from './services/usage.service'
+import { RedisLockProvider } from '../sandbox/common/redis-lock.provider'
+import { Sandbox } from '../sandbox/entities/sandbox.entity'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WorkspaceUsagePeriod])],
-  providers: [UsageService],
+  imports: [TypeOrmModule.forFeature([SandboxUsagePeriod, Sandbox])],
+  providers: [UsageService, RedisLockProvider],
   exports: [UsageService],
 })
 export class UsageModule {}

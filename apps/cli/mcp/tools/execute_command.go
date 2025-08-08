@@ -9,46 +9,49 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/daytonaio/daytona/cli/apiclient"
-	daytonaapiclient "github.com/daytonaio/daytona/daytonaapiclient"
+	"github.com/daytonaio/apiclient"
+	apiclient_cli "github.com/daytonaio/daytona/cli/apiclient"
 	"github.com/mark3labs/mcp-go/mcp"
 
 	log "github.com/sirupsen/logrus"
 )
 
+type ExecuteCommandArgs struct {
+	Id      *string `json:"id,omitempty"`
+	Command *string `json:"command,omitempty"`
+}
+
 type CommandResult struct {
 	Stdout    string `json:"stdout"`
 	Stderr    string `json:"stderr"`
-	ExitCode  int    `json:"exit_code"`
-	ErrorType string `json:"error_type,omitempty"`
+	ExitCode  int    `json:"exitCode"`
+	ErrorType string `json:"errorType,omitempty"`
 }
 
-func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	apiClient, err := apiclient.GetApiClient(nil, daytonaMCPHeaders)
+func GetExecuteCommandTool() mcp.Tool {
+	return mcp.NewTool("execute_command",
+		mcp.WithDescription("Execute shell commands in the ephemeral Daytona Linux environment. Returns full stdout and stderr output with exit codes. Commands have sandbox user permissions and can install packages, modify files, and interact with running services. Always use /tmp directory. Use verbose flags where available for better output."),
+		mcp.WithString("command", mcp.Required(), mcp.Description("Command to execute.")),
+		mcp.WithString("id", mcp.Required(), mcp.Description("ID of the sandbox to execute the command in.")),
+	)
+}
+
+func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest, args ExecuteCommandArgs) (*mcp.CallToolResult, error) {
+	apiClient, err := apiclient_cli.GetApiClient(nil, daytonaMCPHeaders)
 	if err != nil {
 		return &mcp.CallToolResult{IsError: true}, err
 	}
 
-	sandboxId := ""
-	if id, ok := request.Params.Arguments["id"]; ok && id != nil {
-		if idStr, ok := id.(string); ok && idStr != "" {
-			sandboxId = idStr
-		}
+	if args.Id == nil || *args.Id == "" {
+		return returnCommandError("Sandbox ID is required", "SandboxError")
 	}
 
-	if sandboxId == "" {
-		return returnCommandError("No sandbox ID found in tracking file", "SandboxError")
-	}
-
-	cmd := request.Params.Arguments["command"].(string)
-
-	// Validate command input
-	if cmd == "" {
+	if args.Command == nil || *args.Command == "" {
 		return returnCommandError("Command must be a non-empty string", "ValueError")
 	}
 
 	// Process the command
-	command := strings.TrimSpace(cmd)
+	command := strings.TrimSpace(*args.Command)
 	if strings.Contains(command, "&&") || strings.HasPrefix(command, "cd ") {
 		// Wrap complex commands in /bin/sh -c
 		command = fmt.Sprintf("/bin/sh -c %s", shellQuote(command))
@@ -57,8 +60,8 @@ func ExecuteCommand(ctx context.Context, request mcp.CallToolRequest) (*mcp.Call
 	log.Infof("Executing command: %s", command)
 
 	// Execute the command
-	result, _, err := apiClient.ToolboxAPI.ExecuteCommand(ctx, sandboxId).
-		ExecuteRequest(*daytonaapiclient.NewExecuteRequest(command)).
+	result, _, err := apiClient.ToolboxAPI.ExecuteCommand(ctx, *args.Id).
+		ExecuteRequest(*apiclient.NewExecuteRequest(command)).
 		Execute()
 
 	if err != nil {

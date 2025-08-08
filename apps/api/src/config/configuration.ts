@@ -43,7 +43,7 @@ const configuration = {
     secure: process.env.SMTP_SECURE === 'true',
     from: process.env.SMTP_EMAIL_FROM || 'noreply@mail.daytona.io',
   },
-  defaultImage: process.env.DEFAULT_IMAGE,
+  defaultSnapshot: process.env.DEFAULT_SNAPSHOT,
   dashboardUrl: process.env.DASHBOARD_URL,
   transientRegistry: {
     url: process.env.TRANSIENT_REGISTRY_URL,
@@ -68,6 +68,22 @@ const configuration = {
     roleName: process.env.S3_ROLE_NAME,
   },
   skipConnections: process.env.SKIP_CONNECTIONS === 'true',
+  maxAutoArchiveInterval: parseInt(process.env.MAX_AUTO_ARCHIVE_INTERVAL || '43200', 10),
+  maintananceMode: process.env.MAINTENANCE_MODE === 'true',
+  proxy: {
+    domain: process.env.PROXY_DOMAIN,
+    protocol: process.env.PROXY_PROTOCOL,
+    apiKey: process.env.PROXY_API_KEY,
+  },
+  audit: {
+    toolboxRequestsEnabled: process.env.AUDIT_TOOLBOX_REQUESTS_ENABLED === 'true',
+    retentionDays: process.env.AUDIT_LOG_RETENTION_DAYS
+      ? parseInt(process.env.AUDIT_LOG_RETENTION_DAYS, 10)
+      : undefined,
+    consoleLogEnabled: process.env.AUDIT_CONSOLE_LOG_ENABLED === 'true',
+  },
+  cronTimeZone: process.env.CRON_TIMEZONE,
+  maxConcurrentArchivesPerRunner: parseInt(process.env.MAX_CONCURRENT_ARCHIVES_PER_RUNNER || '6', 10),
 }
 
 export { configuration }

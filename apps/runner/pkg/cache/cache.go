@@ -14,7 +14,9 @@ import (
 
 type IRunnerCache interface {
 	SetSandboxState(ctx context.Context, sandboxId string, state enums.SandboxState)
-	SetSnapshotState(ctx context.Context, sandboxId string, state enums.SnapshotState)
+	SetBackupState(ctx context.Context, sandboxId string, state enums.BackupState)
+	SetSystemMetrics(ctx context.Context, metrics models.SystemMetrics)
+	GetSystemMetrics(ctx context.Context) *models.SystemMetrics
 
 	Set(ctx context.Context, sandboxId string, data models.CacheData)
 	Get(ctx context.Context, sandboxId string) *models.CacheData
@@ -59,8 +61,9 @@ func (c *InMemoryRunnerCache) SetSandboxState(ctx context.Context, sandboxId str
 	if !ok {
 		data = &models.CacheData{
 			SandboxState:    state,
-			SnapshotState:   enums.SnapshotStateNone,
+			BackupState:     enums.BackupStateNone,
 			DestructionTime: nil,
+			SystemMetrics:   nil,
 		}
 	} else {
 		data.SandboxState = state
@@ -69,7 +72,7 @@ func (c *InMemoryRunnerCache) SetSandboxState(ctx context.Context, sandboxId str
 	c.cache[sandboxId] = data
 }
 
-func (c *InMemoryRunnerCache) SetSnapshotState(ctx context.Context, sandboxId string, state enums.SnapshotState) {
+func (c *InMemoryRunnerCache) SetBackupState(ctx context.Context, sandboxId string, state enums.BackupState) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -77,14 +80,51 @@ func (c *InMemoryRunnerCache) SetSnapshotState(ctx context.Context, sandboxId st
 	if !ok {
 		data = &models.CacheData{
 			SandboxState:    enums.SandboxStateUnknown,
-			SnapshotState:   state,
+			BackupState:     state,
 			DestructionTime: nil,
+			SystemMetrics:   nil,
 		}
 	} else {
-		data.SnapshotState = state
+		data.BackupState = state
 	}
 
 	c.cache[sandboxId] = data
+}
+
+func (c *InMemoryRunnerCache) SetSystemMetrics(ctx context.Context, metrics models.SystemMetrics) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	// Store system metrics under a special key
+	const systemMetricsKey = "__system_metrics__"
+
+	data, ok := c.cache[systemMetricsKey]
+	if !ok {
+		data = &models.CacheData{
+			SandboxState:    enums.SandboxStateUnknown,
+			BackupState:     enums.BackupStateNone,
+			DestructionTime: nil,
+			SystemMetrics:   &metrics,
+		}
+	} else {
+		data.SystemMetrics = &metrics
+	}
+
+	c.cache[systemMetricsKey] = data
+}
+
+func (c *InMemoryRunnerCache) GetSystemMetrics(ctx context.Context) *models.SystemMetrics {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	const systemMetricsKey = "__system_metrics__"
+
+	data, ok := c.cache[systemMetricsKey]
+	if !ok || data.SystemMetrics == nil {
+		return nil
+	}
+
+	return data.SystemMetrics
 }
 
 func (c *InMemoryRunnerCache) Set(ctx context.Context, sandboxId string, data models.CacheData) {
@@ -93,8 +133,9 @@ func (c *InMemoryRunnerCache) Set(ctx context.Context, sandboxId string, data mo
 
 	c.cache[sandboxId] = &models.CacheData{
 		SandboxState:    data.SandboxState,
-		SnapshotState:   data.SnapshotState,
+		BackupState:     data.BackupState,
 		DestructionTime: data.DestructionTime,
+		SystemMetrics:   data.SystemMetrics,
 	}
 }
 
@@ -106,8 +147,9 @@ func (c *InMemoryRunnerCache) Get(ctx context.Context, sandboxId string) *models
 	if !ok {
 		data = &models.CacheData{
 			SandboxState:    enums.SandboxStateUnknown,
-			SnapshotState:   enums.SnapshotStateNone,
+			BackupState:     enums.BackupStateNone,
 			DestructionTime: nil,
+			SystemMetrics:   nil,
 		}
 	}
 
@@ -121,8 +163,9 @@ func (c *InMemoryRunnerCache) Remove(ctx context.Context, sandboxId string) {
 	destructionTime := time.Now().Add(time.Duration(c.retentionDays) * 24 * time.Hour)
 	c.cache[sandboxId] = &models.CacheData{
 		SandboxState:    enums.SandboxStateDestroyed,
-		SnapshotState:   enums.SnapshotStateNone,
+		BackupState:     enums.BackupStateNone,
 		DestructionTime: &destructionTime,
+		SystemMetrics:   nil,
 	}
 }
 

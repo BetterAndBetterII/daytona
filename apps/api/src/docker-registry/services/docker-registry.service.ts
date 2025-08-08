@@ -5,12 +5,12 @@
 
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { IsNull, Repository } from 'typeorm'
+import { In, IsNull, Repository } from 'typeorm'
 import { DockerRegistry } from '../entities/docker-registry.entity'
 import { CreateDockerRegistryDto } from '../dto/create-docker-registry.dto'
 import { UpdateDockerRegistryDto } from '../dto/update-docker-registry.dto'
 import { ApiOAuth2 } from '@nestjs/swagger'
-import { RegistryPushAccessDto } from '../../workspace/dto/registry-push-access-dto'
+import { RegistryPushAccessDto } from '../../sandbox/dto/registry-push-access-dto'
 import {
   DOCKER_REGISTRY_PROVIDER,
   IDockerRegistryProvider,
@@ -76,10 +76,12 @@ export class DockerRegistryService {
     }
 
     registry.name = updateDto.name
+    registry.url = updateDto.url
     registry.username = updateDto.username
     if (updateDto.password) {
       registry.password = updateDto.password
     }
+    registry.project = updateDto.project
 
     return this.dockerRegistryRepository.save(registry)
   }
@@ -127,12 +129,19 @@ export class DockerRegistryService {
     })
   }
 
-  async findOneByImageName(imageName: string, organizationId?: string): Promise<DockerRegistry | null> {
+  async findOneBySnapshotImageName(imageName: string, organizationId?: string): Promise<DockerRegistry | null> {
+    const whereCondition = organizationId
+      ? [
+          { organizationId, registryType: In([RegistryType.INTERNAL, RegistryType.ORGANIZATION]) },
+          { organizationId: IsNull(), registryType: In([RegistryType.INTERNAL, RegistryType.ORGANIZATION]) },
+        ]
+      : [{ organizationId: IsNull(), registryType: In([RegistryType.INTERNAL, RegistryType.ORGANIZATION]) }]
+
     const registries = await this.dockerRegistryRepository.find({
-      where: [...(organizationId && [{ organizationId }]), { organizationId: IsNull() }],
+      where: whereCondition,
     })
 
-    // Try to find a registry that matches the image name pattern
+    // Try to find a registry that matches the snapshot image name pattern
     for (const registry of registries) {
       const strippedUrl = registry.url.replace(/^(https?:\/\/)/, '')
       if (imageName.startsWith(strippedUrl)) {
@@ -240,6 +249,10 @@ export class DockerRegistryService {
     // Dev mode
     if (registry.url === 'registry:5000') {
       return 'http://registry:5000'
+    }
+
+    if (registry.url.startsWith('localhost') || registry.url.startsWith('127.0.0.1')) {
+      return `http://${registry.url}`
     }
 
     return registry.url.startsWith('http') ? registry.url : `https://${registry.url}`

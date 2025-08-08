@@ -9,5 +9,6 @@ export const OrganizationEvents = {
   INVITATION_DECLINED: 'invitation.declined',
   INVITATION_CANCELLED: 'invitation.cancelled',
   CREATED: 'organization.created',
-  SUSPENDED_WORKSPACE_STOPPED: 'organization.suspended-workspace-stopped',
+  SUSPENDED_SANDBOX_STOPPED: 'organization.suspended-sandbox-stopped',
+  SUSPENDED_SNAPSHOT_DEACTIVATED: 'organization.suspended-snapshot-deactivated',
 } as const

@@ -26,7 +26,7 @@ export class DockerRegistry {
   @Column({ default: false })
   isDefault: boolean
 
-  @Column()
+  @Column({ default: '' })
   project: string
 
   @Column({ nullable: true, type: 'uuid' })
@@ -39,9 +39,13 @@ export class DockerRegistry {
   })
   registryType: RegistryType
 
-  @CreateDateColumn()
+  @CreateDateColumn({
+    type: 'timestamp with time zone',
+  })
   createdAt: Date
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({
+    type: 'timestamp with time zone',
+  })
   updatedAt: Date
 }

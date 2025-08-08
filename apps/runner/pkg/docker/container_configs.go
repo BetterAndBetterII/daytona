@@ -10,26 +10,28 @@ import (
 
 	"github.com/daytonaio/runner/cmd/runner/config"
 	"github.com/daytonaio/runner/pkg/api/dto"
+	"github.com/docker/docker/api/types/network"
 
 	"github.com/docker/docker/api/types/container"
 )
 
-func (d *DockerClient) getContainerConfigs(ctx context.Context, sandboxDto dto.CreateSandboxDTO, volumeMountPathBinds []string) (*container.Config, *container.HostConfig, error) {
+func (d *DockerClient) getContainerConfigs(ctx context.Context, sandboxDto dto.CreateSandboxDTO, volumeMountPathBinds []string) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
 	containerConfig := d.getContainerCreateConfig(sandboxDto)
 
 	hostConfig, err := d.getContainerHostConfig(ctx, sandboxDto, volumeMountPathBinds)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return containerConfig, hostConfig, nil
+	networkingConfig := d.getContainerNetworkingConfig(ctx)
+	return containerConfig, hostConfig, networkingConfig, nil
 }
 
 func (d *DockerClient) getContainerCreateConfig(sandboxDto dto.CreateSandboxDTO) *container.Config {
 	envVars := []string{
-		"DAYTONA_WS_ID=" + sandboxDto.Id,
-		"DAYTONA_WS_IMAGE=" + sandboxDto.Image,
-		"DAYTONA_WS_USER=" + sandboxDto.OsUser,
+		"DAYTONA_SANDBOX_ID=" + sandboxDto.Id,
+		"DAYTONA_SANDBOX_SNAPSHOT=" + sandboxDto.Snapshot,
+		"DAYTONA_SANDBOX_USER=" + sandboxDto.OsUser,
 	}
 
 	for key, value := range sandboxDto.Env {
@@ -38,7 +40,7 @@ func (d *DockerClient) getContainerCreateConfig(sandboxDto dto.CreateSandboxDTO)
 
 	return &container.Config{
 		Hostname: sandboxDto.Id,
-		Image:    sandboxDto.Image,
+		Image:    sandboxDto.Snapshot,
 		// User:         sandboxDto.OsUser,
 		Env:          envVars,
 		Entrypoint:   sandboxDto.Entrypoint,
@@ -51,6 +53,11 @@ func (d *DockerClient) getContainerHostConfig(ctx context.Context, sandboxDto dt
 	var binds []string
 
 	binds = append(binds, fmt.Sprintf("%s:/usr/local/bin/daytona:ro", d.daemonPath))
+
+	// Mount the plugin if available
+	if d.computerUsePluginPath != "" {
+		binds = append(binds, fmt.Sprintf("%s:/usr/local/lib/daytona-computer-use:ro", d.computerUsePluginPath))
+	}
 
 	if len(volumeMountPathBinds) > 0 {
 		binds = append(binds, volumeMountPathBinds...)
@@ -85,6 +92,18 @@ func (d *DockerClient) getContainerHostConfig(ctx context.Context, sandboxDto dt
 	}
 
 	return hostConfig, nil
+}
+
+func (d *DockerClient) getContainerNetworkingConfig(_ context.Context) *network.NetworkingConfig {
+	containerNetwork := config.GetContainerNetwork()
+	if containerNetwork != "" {
+		return &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				containerNetwork: {},
+			},
+		}
+	}
+	return nil
 }
 
 func (d *DockerClient) getFilesystem(ctx context.Context) (string, error) {

@@ -8,46 +8,42 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/daytonaio/daytona/cli/apiclient"
-	daytonaapiclient "github.com/daytonaio/daytona/daytonaapiclient"
+	"github.com/daytonaio/apiclient"
+	apiclient_cli "github.com/daytonaio/daytona/cli/apiclient"
 )
 
-func AwaitImageState(ctx context.Context, apiClient *daytonaapiclient.APIClient, targetImage string, state daytonaapiclient.ImageState) error {
+func AwaitSnapshotState(ctx context.Context, apiClient *apiclient.APIClient, name string, state apiclient.SnapshotState) error {
 	for {
-		images, res, err := apiClient.ImagesAPI.GetAllImages(ctx).Execute()
+		snapshot, res, err := apiClient.SnapshotsAPI.GetSnapshot(ctx, name).Execute()
 		if err != nil {
-			return apiclient.HandleErrorResponse(res, err)
+			return apiclient_cli.HandleErrorResponse(res, err)
 		}
 
-		for _, image := range images.Items {
-			if image.Name == targetImage {
-				if image.State == state {
-					return nil
-				} else if image.State == daytonaapiclient.IMAGESTATE_ERROR {
-					if !image.ErrorReason.IsSet() {
-						return fmt.Errorf("image processing failed")
-					}
-					return fmt.Errorf("image processing failed: %s", *image.ErrorReason.Get())
-				}
+		if snapshot.State == state {
+			return nil
+		} else if snapshot.State == apiclient.SNAPSHOTSTATE_ERROR || snapshot.State == apiclient.SNAPSHOTSTATE_BUILD_FAILED {
+			if !snapshot.ErrorReason.IsSet() {
+				return fmt.Errorf("snapshot processing failed")
 			}
+			return fmt.Errorf("snapshot processing failed: %s", *snapshot.ErrorReason.Get())
 		}
 
 		time.Sleep(time.Second)
 	}
 }
 
-func AwaitSandboxState(ctx context.Context, apiClient *daytonaapiclient.APIClient, targetSandbox string, state daytonaapiclient.WorkspaceState) error {
+func AwaitSandboxState(ctx context.Context, apiClient *apiclient.APIClient, targetSandbox string, state apiclient.SandboxState) error {
 	for {
-		sandboxes, res, err := apiClient.WorkspaceAPI.ListWorkspaces(ctx).Execute()
+		sandboxes, res, err := apiClient.SandboxAPI.ListSandboxes(ctx).Execute()
 		if err != nil {
-			return apiclient.HandleErrorResponse(res, err)
+			return apiclient_cli.HandleErrorResponse(res, err)
 		}
 
 		for _, sandbox := range sandboxes {
 			if sandbox.Id == targetSandbox {
 				if sandbox.State != nil && *sandbox.State == state {
 					return nil
-				} else if sandbox.State != nil && *sandbox.State == daytonaapiclient.WORKSPACESTATE_ERROR {
+				} else if sandbox.State != nil && (*sandbox.State == apiclient.SANDBOXSTATE_ERROR || *sandbox.State == apiclient.SANDBOXSTATE_BUILD_FAILED) {
 					if sandbox.ErrorReason == nil {
 						return fmt.Errorf("sandbox processing failed")
 					}

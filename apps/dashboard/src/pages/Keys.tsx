@@ -75,9 +75,10 @@ const Keys: React.FC = () => {
   const handleCreateKey = async (
     name: string,
     permissions: CreateApiKeyPermissionsEnum[],
+    expiresAt: Date | null,
   ): Promise<ApiKeyResponse | null> => {
     try {
-      const key = (await apiKeyApi.createApiKey({ name, permissions }, selectedOrganization?.id)).data
+      const key = (await apiKeyApi.createApiKey({ name, permissions, expiresAt }, selectedOrganization?.id)).data
       toast.success('API key created successfully')
       await fetchKeys(false)
       return key
@@ -88,9 +89,9 @@ const Keys: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">API Keys</h1>
+    <div className="px-6 py-2">
+      <div className="mb-2 h-12 flex items-center justify-between">
+        <h1 className="text-2xl font-medium">API Keys</h1>
         <CreateApiKeyDialog availablePermissions={availablePermissions} onCreateApiKey={handleCreateKey} />
       </div>
 

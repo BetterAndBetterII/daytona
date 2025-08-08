@@ -16,7 +16,7 @@ import {
 import { TableHeader, TableRow, TableHead, TableBody, TableCell, Table } from './ui/table'
 import { Button } from './ui/button'
 import { useMemo, useState } from 'react'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Package } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +28,7 @@ import { DialogTrigger } from './ui/dialog'
 import { Pagination } from './Pagination'
 import { useSelectedOrganization } from '@/hooks/useSelectedOrganization'
 import { DEFAULT_PAGE_SIZE } from '@/constants/Pagination'
+import { TableEmptyState } from './TableEmptyState'
 
 interface DataTableProps {
   data: DockerRegistry[]
@@ -77,7 +78,7 @@ export function RegistryTable({ data, loading, onDelete, onEdit }: DataTableProp
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="px-2">
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   )
@@ -96,24 +97,19 @@ export function RegistryTable({ data, loading, onDelete, onEdit }: DataTableProp
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell className="px-2" key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
-              !loading && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <p className="text-muted-foreground">No container registries found.</p>
-                      <p className="text-sm text-muted-foreground">
-                        Connect to external container registries (e.g., Docker Hub, GCR, ECR) to pull images for your
-                        Sandboxes.
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
+              <TableEmptyState
+                colSpan={columns.length}
+                message="No Container registries found."
+                icon={<Package className="w-8 h-8" />}
+                description="Connect to external container registries (e.g., Docker Hub, GCR, ECR) to pull images for your Sandboxes."
+              />
             )}
           </TableBody>
         </Table>
@@ -146,8 +142,11 @@ const getColumns = ({
       header: 'URL',
     },
     {
-      accessorKey: 'project',
+      id: 'project',
       header: 'Project',
+      cell: ({ row }) => {
+        return row.original.project || '-'
+      },
     },
     {
       accessorKey: 'username',

@@ -25,7 +25,7 @@ You might find things that can be improved while you are using Daytona. You can 
 
 - A new feature or an enhancement to an existing feature will improve the utility or usability of Daytona.
 - Daytona crashes, or you encounter a bug that can only be resolved by restarting Daytona.
-- An error occurs that is unrecoverable, causes workspace integrity problems or loss, or generally prevents you from using a workspace.
+- An error occurs that is unrecoverable, causes Sandbox integrity problems or loss, or generally prevents you from using a Sandbox.
 
 Before creating a new issue, please confirm that an existing issue doesn't already exist.
 
@@ -65,6 +65,7 @@ Follow the following steps to ensure your contribution goes smoothly.
 1. Ensure that you sign off on all your commits to comply with the DCO v1.1. We have more details in [Prepare your changes](/PREPARING_YOUR_CHANGES.md).
 1. Ensure to generate new docs after making command related changes, by running `./hack/generate-cli-docs.sh` in the daytona root directory.
 1. Ensure to generate a new API client after making changes related to the API spec, by running `./hack/swagger.sh` in the daytona root directory.
+1. Ensure that you are using `yarn` as the package manager for any Node.js dependencies.
 1. Ensure that you have no lint errors. We use `golangci-lint` as our linter which you can install by following instructions found [here](https://golangci-lint.run/welcome/install/#local-installation) (or simply open Daytona in a Dev Container). You can check for linting errors by running `golangci-lint run` in the root of the project.
 1. Create a pull request on GitHub. If you're new to GitHub, read about [pull requests](https://help.github.com/articles/about-pull-requests/). You are welcome to submit your pull request for commentary or review before it is complete by creating a [draft pull request](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests). Please include specific questions or items you'd like feedback on.
 1. A member of the Daytona team will review your PR within three business days (excluding any holidays) and either merge, comment, and/or assign someone for review.
@@ -85,7 +86,7 @@ While working on a PR, if you see something that can be refactored to comply, go
 API and service method conventions:
 
 1. Avoid using model names in service methods
-   - e.g. `Create` instead of `CreateWorkspace`, `Find` instead of `FindWorkspace`
+   - e.g. `Create` instead of `CreateSandbox`, `Find` instead of `FindSandbox`
 1. Use appropriate verbs in the UI
    - e.g. `Create API Key` instead of `Generate API Key` since the method is called `Create`
 1. Refer to the table below for a connection between API and service methods
@@ -101,7 +102,7 @@ API and service method conventions:
 
 Here is what being a contributor means for you:
 
-- License all our contributions to the project under the Apache License, Version 2.0
+- License all our contributions to the project under the AGPL 3.0 License or the Apache 2.0 License
 - Have the legal rights to license our contributions ourselves, or get permission to license them from our employers, clients, or others who may have them
 
 For more information, see the [README](README.md) and feel free to reach out to us on [Slack](https://go.daytona.io/slack).

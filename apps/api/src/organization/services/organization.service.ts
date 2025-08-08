@@ -16,22 +16,24 @@ import { OnAsyncEvent } from '../../common/decorators/on-async-event.decorator'
 import { UserEvents } from '../../user/constants/user-events.constant'
 import { UserCreatedEvent } from '../../user/events/user-created.event'
 import { UserDeletedEvent } from '../../user/events/user-deleted.event'
-import { Workspace } from '../../workspace/entities/workspace.entity'
-import { Image } from '../../workspace/entities/image.entity'
-import { WorkspaceState } from '../../workspace/enums/workspace-state.enum'
+import { Sandbox } from '../../sandbox/entities/sandbox.entity'
+import { Snapshot } from '../../sandbox/entities/snapshot.entity'
+import { SandboxState } from '../../sandbox/enums/sandbox-state.enum'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { OrganizationEvents } from '../constants/organization-events.constant'
 import { CreateOrganizationQuotaDto } from '../dto/create-organization-quota.dto'
 import { DEFAULT_ORGANIZATION_QUOTA } from '../../common/constants/default-organization-quota'
 import { ConfigService } from '@nestjs/config'
 import { UserEmailVerifiedEvent } from '../../user/events/user-email-verified.event'
-import { Volume } from '../../workspace/entities/volume.entity'
-import { VolumeState } from '../../workspace/enums/volume-state.enum'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectRedis } from '@nestjs-modules/ioredis'
 import { Redis } from 'ioredis'
-import { RedisLockProvider } from '../../workspace/common/redis-lock.provider'
-import { OrganizationSuspendedWorkspaceStoppedEvent } from '../events/organization-suspended-workspace-stopped.event'
+import { RedisLockProvider } from '../../sandbox/common/redis-lock.provider'
+import { OrganizationSuspendedSandboxStoppedEvent } from '../events/organization-suspended-sandbox-stopped.event'
+import { SandboxDesiredState } from '../../sandbox/enums/sandbox-desired-state.enum'
+import { SystemRole } from '../../user/enums/system-role.enum'
+import { SnapshotState } from '../../sandbox/enums/snapshot-state.enum'
+import { OrganizationSuspendedSnapshotDeactivatedEvent } from '../events/organization-suspended-snapshot-deactivated.event'
 
 @Injectable()
 export class OrganizationService implements OnModuleInit {
@@ -41,19 +43,17 @@ export class OrganizationService implements OnModuleInit {
     @InjectRedis() private readonly redis: Redis,
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
-    @InjectRepository(Workspace)
-    private readonly workspaceRepository: Repository<Workspace>,
-    @InjectRepository(Image)
-    private readonly imageRepository: Repository<Image>,
-    @InjectRepository(Volume)
-    private readonly volumeRepository: Repository<Volume>,
+    @InjectRepository(Sandbox)
+    private readonly sandboxRepository: Repository<Sandbox>,
+    @InjectRepository(Snapshot)
+    private readonly snapshotRepository: Repository<Snapshot>,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
     private readonly redisLockProvider: RedisLockProvider,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.stopSuspendedOrganizationWorkspaces()
+    await this.stopSuspendedOrganizationSandboxes()
   }
 
   async create(
@@ -87,17 +87,16 @@ export class OrganizationService implements OnModuleInit {
     })
   }
 
-  async findSuspended(suspendedBefore?: Date, suspendedAfter?: Date): Promise<Organization[]> {
-    return this.organizationRepository.find({
-      where: {
-        suspended: true,
-        suspendedUntil: Or(IsNull(), MoreThan(new Date())),
-        ...(suspendedBefore ? { suspendedAt: LessThan(suspendedBefore) } : {}),
-        ...(suspendedAfter ? { suspendedAt: MoreThan(suspendedAfter) } : {}),
-      },
-      //  limit the number of organizations to avoid memory issues
-      take: 1000,
+  async findBySandboxId(sandboxId: string): Promise<Organization | null> {
+    const sandbox = await this.sandboxRepository.findOne({
+      where: { id: sandboxId },
     })
+
+    if (!sandbox) {
+      return null
+    }
+
+    return this.organizationRepository.findOne({ where: { id: sandbox.organizationId } })
   }
 
   async findPersonal(userId: string): Promise<Organization> {
@@ -120,21 +119,21 @@ export class OrganizationService implements OnModuleInit {
       throw new NotFoundException(`Organization with ID ${organizationId} not found`)
     }
 
-    // Get all workspaces for the organization, excluding destroyed and error ones
-    const workspaces = await this.workspaceRepository.find({
+    // Get all sandboxes for the organization, excluding destroyed and error ones
+    const sandboxes = await this.sandboxRepository.find({
       where: {
         organizationId,
-        state: Not(In([WorkspaceState.DESTROYED, WorkspaceState.ERROR, WorkspaceState.ARCHIVED])),
+        state: Not(In([SandboxState.DESTROYED, SandboxState.ERROR, SandboxState.BUILD_FAILED, SandboxState.ARCHIVED])),
       },
     })
 
-    // Get running workspaces
-    const runningWorkspaces = workspaces.filter((w) => w.state === WorkspaceState.STARTED)
+    // Get running sandboxes
+    const runningSandboxes = sandboxes.filter((s) => s.state === SandboxState.STARTED)
 
     // Calculate current usage
-    const currentCpuUsage = runningWorkspaces.reduce((sum, w) => sum + w.cpu, 0)
-    const currentMemoryUsage = runningWorkspaces.reduce((sum, w) => sum + w.mem, 0)
-    const currentDiskUsage = workspaces.reduce((sum, w) => sum + w.disk, 0)
+    const currentCpuUsage = runningSandboxes.reduce((sum, s) => sum + s.cpu, 0)
+    const currentMemoryUsage = runningSandboxes.reduce((sum, s) => sum + s.mem, 0)
+    const currentDiskUsage = sandboxes.reduce((sum, s) => sum + s.disk, 0)
 
     return {
       totalCpuQuota: organization.totalCpuQuota,
@@ -159,18 +158,22 @@ export class OrganizationService implements OnModuleInit {
     organization.totalCpuQuota = updateOrganizationQuotaDto.totalCpuQuota ?? organization.totalCpuQuota
     organization.totalMemoryQuota = updateOrganizationQuotaDto.totalMemoryQuota ?? organization.totalMemoryQuota
     organization.totalDiskQuota = updateOrganizationQuotaDto.totalDiskQuota ?? organization.totalDiskQuota
-    organization.maxCpuPerWorkspace = updateOrganizationQuotaDto.maxCpuPerWorkspace ?? organization.maxCpuPerWorkspace
-    organization.maxMemoryPerWorkspace =
-      updateOrganizationQuotaDto.maxMemoryPerWorkspace ?? organization.maxMemoryPerWorkspace
-    organization.maxDiskPerWorkspace =
-      updateOrganizationQuotaDto.maxDiskPerWorkspace ?? organization.maxDiskPerWorkspace
-    organization.maxImageSize = updateOrganizationQuotaDto.maxImageSize ?? organization.maxImageSize
+    organization.maxCpuPerSandbox = updateOrganizationQuotaDto.maxCpuPerSandbox ?? organization.maxCpuPerSandbox
+    organization.maxMemoryPerSandbox =
+      updateOrganizationQuotaDto.maxMemoryPerSandbox ?? organization.maxMemoryPerSandbox
+    organization.maxDiskPerSandbox = updateOrganizationQuotaDto.maxDiskPerSandbox ?? organization.maxDiskPerSandbox
+    organization.maxSnapshotSize = updateOrganizationQuotaDto.maxSnapshotSize ?? organization.maxSnapshotSize
     organization.volumeQuota = updateOrganizationQuotaDto.volumeQuota ?? organization.volumeQuota
-    organization.imageQuota = updateOrganizationQuotaDto.imageQuota ?? organization.imageQuota
+    organization.snapshotQuota = updateOrganizationQuotaDto.snapshotQuota ?? organization.snapshotQuota
     return this.organizationRepository.save(organization)
   }
 
-  async suspend(organizationId: string, suspensionReason?: string, suspendedUntil?: Date): Promise<void> {
+  async suspend(
+    organizationId: string,
+    suspensionReason?: string,
+    suspendedUntil?: Date,
+    suspensionCleanupGracePeriodHours?: number,
+  ): Promise<void> {
     const organization = await this.organizationRepository.findOne({ where: { id: organizationId } })
     if (!organization) {
       throw new NotFoundException(`Organization with ID ${organizationId} not found`)
@@ -180,6 +183,10 @@ export class OrganizationService implements OnModuleInit {
     organization.suspensionReason = suspensionReason || null
     organization.suspendedUntil = suspendedUntil || null
     organization.suspendedAt = new Date()
+    if (suspensionCleanupGracePeriodHours) {
+      organization.suspensionCleanupGracePeriodHours = suspensionCleanupGracePeriodHours
+    }
+
     await this.organizationRepository.save(organization)
   }
 
@@ -231,11 +238,11 @@ export class OrganizationService implements OnModuleInit {
     organization.totalCpuQuota = quota.totalCpuQuota
     organization.totalMemoryQuota = quota.totalMemoryQuota
     organization.totalDiskQuota = quota.totalDiskQuota
-    organization.maxCpuPerWorkspace = quota.maxCpuPerWorkspace
-    organization.maxMemoryPerWorkspace = quota.maxMemoryPerWorkspace
-    organization.maxDiskPerWorkspace = quota.maxDiskPerWorkspace
-    organization.imageQuota = quota.imageQuota
-    organization.maxImageSize = quota.maxImageSize
+    organization.maxCpuPerSandbox = quota.maxCpuPerSandbox
+    organization.maxMemoryPerSandbox = quota.maxMemoryPerSandbox
+    organization.maxDiskPerSandbox = quota.maxDiskPerSandbox
+    organization.snapshotQuota = quota.snapshotQuota
+    organization.maxSnapshotSize = quota.maxSnapshotSize
     organization.volumeQuota = quota.volumeQuota
 
     if (!creatorEmailVerified) {
@@ -297,38 +304,109 @@ export class OrganizationService implements OnModuleInit {
     return organization
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES, { name: 'stop-suspended-organization-workspaces' })
-  async stopSuspendedOrganizationWorkspaces(): Promise<void> {
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'stop-suspended-organization-sandboxes' })
+  async stopSuspendedOrganizationSandboxes(): Promise<void> {
     //  lock the sync to only run one instance at a time
-    const lockKey = 'stop-suspended-organization-workspaces'
+    const lockKey = 'stop-suspended-organization-sandboxes'
     if (!(await this.redisLockProvider.lock(lockKey, 60))) {
       return
     }
 
-    const suspendedOrganizations = await this.findSuspended(
-      // Find organization suspended more than 24 hours ago
-      new Date(Date.now() - 1 * 1000 * 60 * 60 * 24),
-      //  and less than 7 days ago
-      new Date(Date.now() - 7 * 1000 * 60 * 60 * 24),
-    )
+    const queryResult = await this.organizationRepository
+      .createQueryBuilder('organization')
+      .select('id')
+      .where('suspended = true')
+      .andWhere(`"suspendedAt" < NOW() - INTERVAL '1 hour' * "suspensionCleanupGracePeriodHours"`)
+      .andWhere(`"suspendedAt" > NOW() - INTERVAL '7 day'`)
+      .andWhereExists(
+        this.sandboxRepository
+          .createQueryBuilder('sandbox')
+          .select('1')
+          .where(
+            `"sandbox"."organizationId" = "organization"."id" AND "sandbox"."desiredState" = '${SandboxDesiredState.STARTED}' and "sandbox"."state" NOT IN ('${SandboxState.ERROR}', '${SandboxState.BUILD_FAILED}')`,
+          ),
+      )
+      .take(100)
+      .getRawMany()
 
-    const suspendedOrganizationIds = suspendedOrganizations.map((organization) => organization.id)
+    const suspendedOrganizationIds = queryResult.map((result) => result.id)
 
-    const workspaces = await this.workspaceRepository.find({
+    // Skip if no suspended organizations found to avoid empty IN clause
+    if (suspendedOrganizationIds.length === 0) {
+      await this.redisLockProvider.unlock(lockKey)
+      return
+    }
+
+    const sandboxes = await this.sandboxRepository.find({
       where: {
         organizationId: In(suspendedOrganizationIds),
-        state: WorkspaceState.STARTED,
+        desiredState: SandboxDesiredState.STARTED,
+        state: Not(In([SandboxState.ERROR, SandboxState.BUILD_FAILED])),
       },
     })
 
-    workspaces.map((workspace) =>
+    sandboxes.map((sandbox) =>
       this.eventEmitter.emitAsync(
-        OrganizationEvents.SUSPENDED_WORKSPACE_STOPPED,
-        new OrganizationSuspendedWorkspaceStoppedEvent(workspace.id),
+        OrganizationEvents.SUSPENDED_SANDBOX_STOPPED,
+        new OrganizationSuspendedSandboxStoppedEvent(sandbox.id),
       ),
     )
 
-    await this.redis.del(lockKey)
+    await this.redisLockProvider.unlock(lockKey)
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'deactivate-suspended-organization-snapshots' })
+  async deactivateSuspendedOrganizationSnapshots(): Promise<void> {
+    //  lock the sync to only run one instance at a time
+    const lockKey = 'deactivate-suspended-organization-snapshots'
+    if (!(await this.redisLockProvider.lock(lockKey, 60))) {
+      return
+    }
+
+    const queryResult = await this.organizationRepository
+      .createQueryBuilder('organization')
+      .select('id')
+      .where('suspended = true')
+      .andWhere(`"suspendedAt" < NOW() - INTERVAL '1 hour' * "suspensionCleanupGracePeriodHours"`)
+      .andWhere(`"suspendedAt" > NOW() - INTERVAL '7 day'`)
+      .andWhereExists(
+        this.snapshotRepository
+          .createQueryBuilder('snapshot')
+          .select('1')
+          .where('snapshot.organizationId = organization.id')
+          .andWhere(`snapshot.state = '${SnapshotState.ACTIVE}'`)
+          .andWhere(`snapshot.general = false`),
+      )
+      .take(100)
+      .getRawMany()
+
+    const suspendedOrganizationIds = queryResult.map((result) => result.id)
+
+    // Skip if no suspended organizations found to avoid empty IN clause
+    if (suspendedOrganizationIds.length === 0) {
+      await this.redisLockProvider.unlock(lockKey)
+      return
+    }
+
+    const snapshotQueryResult = await this.snapshotRepository
+      .createQueryBuilder('snapshot')
+      .select('id')
+      .where('snapshot.organizationId IN (:...suspendedOrgIds)', { suspendedOrgIds: suspendedOrganizationIds })
+      .andWhere(`snapshot.state = '${SnapshotState.ACTIVE}'`)
+      .andWhere(`snapshot.general = false`)
+      .take(100)
+      .getRawMany()
+
+    const snapshotIds = snapshotQueryResult.map((result) => result.id)
+
+    snapshotIds.map((id) =>
+      this.eventEmitter.emitAsync(
+        OrganizationEvents.SUSPENDED_SNAPSHOT_DEACTIVATED,
+        new OrganizationSuspendedSnapshotDeactivatedEvent(id),
+      ),
+    )
+
+    await this.redisLockProvider.unlock(lockKey)
   }
 
   @OnAsyncEvent({
@@ -340,8 +418,8 @@ export class OrganizationService implements OnModuleInit {
       {
         name: 'Personal',
       },
-      payload.userId,
-      payload.emailVerified || false,
+      payload.user.id,
+      payload.user.role === SystemRole.ADMIN ? true : payload.user.emailVerified,
       true,
       payload.personalOrganizationQuota,
     )
@@ -361,5 +439,19 @@ export class OrganizationService implements OnModuleInit {
     const organization = await this.findPersonalWithEntityManager(payload.entityManager, payload.userId)
 
     await this.removeWithEntityManager(payload.entityManager, organization, true)
+  }
+
+  assertOrganizationIsNotSuspended(organization: Organization): void {
+    if (!organization.suspended) {
+      return
+    }
+
+    if (organization.suspendedUntil ? organization.suspendedUntil > new Date() : true) {
+      if (organization.suspensionReason) {
+        throw new ForbiddenException(`Organization is suspended: ${organization.suspensionReason}`)
+      } else {
+        throw new ForbiddenException('Organization is suspended')
+      }
+    }
   }
 }

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0
  */
 
+import './tracing'
 import { readFileSync } from 'node:fs'
 import { NestFactory } from '@nestjs/core'
 import { NestExpressApplication } from '@nestjs/platform-express'
@@ -16,10 +17,13 @@ import { MetricsInterceptor } from './interceptors/metrics.interceptor'
 import { HttpsOptions } from '@nestjs/common/interfaces/external/https-options.interface'
 import { TypedConfigService } from './config/typed-config.service'
 import { DataSource, MigrationExecutor } from 'typeorm'
-import { NodeService } from './workspace/services/node.service'
-import { NodeRegion } from './workspace/enums/node-region.enum'
-import { WorkspaceClass } from './workspace/enums/workspace-class.enum'
+import { RunnerService } from './sandbox/services/runner.service'
+
+import { SandboxClass } from './sandbox/enums/sandbox-class.enum'
 import { getOpenApiConfig } from './openapi.config'
+import { SchedulerRegistry } from '@nestjs/schedule'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { AuditInterceptor } from './audit/interceptors/audit.interceptor'
 
 // https options
 const httpsEnabled = process.env.CERT_PATH && process.env.CERT_KEY_PATH
@@ -29,7 +33,7 @@ const httpsOptions: HttpsOptions = {
 }
 
 // Default log level
-const logLevels: LogLevel[] = ['log', 'error']
+const logLevels: LogLevel[] = ['log', 'error', 'warn']
 if (process.env.LOG_LEVEL) {
   logLevels.push(process.env.LOG_LEVEL as LogLevel)
 }
@@ -42,13 +46,22 @@ async function bootstrap() {
     }),
     httpsOptions: httpsEnabled ? httpsOptions : undefined,
   })
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  })
 
   const configService = app.get(TypedConfigService)
   const httpAdapter = app.get(HttpAdapterHost)
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter))
   app.useGlobalFilters(new NotFoundExceptionFilter())
   app.useGlobalInterceptors(new MetricsInterceptor())
+  app.useGlobalInterceptors(app.get(AuditInterceptor))
   app.useGlobalPipes(new ValidationPipe())
+
+  const eventEmitter = app.get(EventEmitter2)
+  eventEmitter.setMaxListeners(100)
 
   // Runtime flags for migrations for run and revert migrations
   if (process.argv.length > 2 && process.argv[2].startsWith('--migration-')) {
@@ -74,26 +87,48 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix)
 
   const documentFactory = () => SwaggerModule.createDocument(app, getOpenApiConfig(configService.get('oidc.issuer')))
-  SwaggerModule.setup('api', app, documentFactory)
+  SwaggerModule.setup('api', app, documentFactory, {
+    swaggerOptions: {
+      initOAuth: {
+        clientId: configService.get('oidc.clientId'),
+        appName: 'Daytona AI',
+        scopes: ['openid', 'profile', 'email'],
+        additionalQueryStringParams: {
+          audience: configService.get('oidc.audience'),
+        },
+      },
+    },
+  })
 
-  // Auto create nodes only in local development environment
+  // Auto create runners only in local development environment
   if (!configService.get('production')) {
-    const nodeService = app.get(NodeService)
-    const nodes = await nodeService.findAll()
-    if (!nodes.find((node) => node.domain === 'localtest.me:3003')) {
-      await nodeService.create({
+    const runnerService = app.get(RunnerService)
+    const runners = await runnerService.findAll()
+    if (!runners.find((runner) => runner.domain === 'localtest.me:3003')) {
+      await runnerService.create({
         apiUrl: 'http://localhost:3003',
+        proxyUrl: 'http://localhost:3003',
         apiKey: 'secret_api_token',
         cpu: 4,
-        memory: 8192,
-        disk: 50,
+        memoryGiB: 8,
+        diskGiB: 50,
         gpu: 0,
         gpuType: 'none',
         capacity: 100,
-        region: NodeRegion.US,
-        class: WorkspaceClass.SMALL,
+        region: 'us',
+        class: SandboxClass.SMALL,
         domain: 'localtest.me:3003',
+        version: '0',
       })
+    }
+  }
+
+  // Stop all cron jobs if maintenance mode is enabled
+  if (configService.get('maintananceMode')) {
+    await app.init()
+    const schedulerRegistry = app.get(SchedulerRegistry)
+    for (const cronName of schedulerRegistry.getCronJobs().keys()) {
+      schedulerRegistry.deleteCronJob(cronName)
     }
   }
 

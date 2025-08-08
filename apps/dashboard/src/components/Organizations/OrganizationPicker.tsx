@@ -59,8 +59,7 @@ export const OrganizationPicker: React.FC = () => {
         })
       ).data
       toast.success('Organization created successfully')
-      await refreshOrganizations()
-      await onSelectOrganization(organization.id)
+      await refreshOrganizations(organization.id)
       return organization
     } catch (error) {
       handleApiError(error, 'Failed to create organization')
@@ -97,9 +96,14 @@ export const OrganizationPicker: React.FC = () => {
       <SidebarMenuItem className={`mb-1 ${loadingSelectOrganization ? 'cursor-progress' : ''}`}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton disabled={loadingSelectOrganization}>
-              {getOrganizationIcon(optimisticSelectedOrganization)}
-              <span className="truncate">{optimisticSelectedOrganization.name}</span>
+            <SidebarMenuButton
+              disabled={loadingSelectOrganization}
+              className="outline outline-1 outline-border outline-offset-0 mb-2 bg-muted px-3"
+            >
+              <div className="w-4 h-4 flex-shrink-0 bg-black rounded-full text-white flex items-center justify-center text-[10px] font-bold">
+                {optimisticSelectedOrganization.name[0].toUpperCase()}
+              </div>
+              <span className="truncate text-foreground">{optimisticSelectedOrganization.name}</span>
               <ChevronsUpDown className="ml-auto w-4 h-4 opacity-50" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>

@@ -8,18 +8,21 @@ import { WebSocketGateway, WebSocketServer, OnGatewayInit } from '@nestjs/websoc
 import { Server, Socket } from 'socket.io'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { OrganizationService } from '../../organization/services/organization.service'
-import { WorkspaceEvents } from '../../workspace/constants/workspace-events.constants'
-import { WorkspaceState } from '../../workspace/enums/workspace-state.enum'
-import { WorkspaceDto } from '../../workspace/dto/workspace.dto'
-import { ImageDto } from '../../workspace/dto/image.dto'
-import { ImageEvents } from '../../workspace/constants/image-events'
-import { ImageState } from '../../workspace/enums/image-state.enum'
+import { SandboxEvents } from '../../sandbox/constants/sandbox-events.constants'
+import { SandboxState } from '../../sandbox/enums/sandbox-state.enum'
+import { SandboxDto } from '../../sandbox/dto/sandbox.dto'
+import { SnapshotDto } from '../../sandbox/dto/snapshot.dto'
+import { SnapshotEvents } from '../../sandbox/constants/snapshot-events'
+import { SnapshotState } from '../../sandbox/enums/snapshot-state.enum'
 import { InjectRedis } from '@nestjs-modules/ioredis'
 import Redis from 'ioredis'
 import { JwtStrategy } from '../../auth/jwt.strategy'
-import { VolumeEvents } from '../../workspace/constants/volume-events'
-import { VolumeDto } from '../../workspace/dto/volume.dto'
-import { VolumeState } from '../../workspace/enums/volume-state.enum'
+import { VolumeEvents } from '../../sandbox/constants/volume-events'
+import { VolumeDto } from '../../sandbox/dto/volume.dto'
+import { VolumeState } from '../../sandbox/enums/volume-state.enum'
+import { SandboxDesiredState } from '../../sandbox/enums/sandbox-desired-state.enum'
+import { AuditLogEvents } from '../../audit/constants/audit-log-events.constant'
+import { AuditLogDto } from '../../audit/dto/audit-log.dto'
 
 @WebSocketGateway({
   path: '/api/socket.io/',
@@ -52,15 +55,19 @@ export class NotificationGateway implements OnGatewayInit, OnModuleInit {
       if (!token) {
         return next(new UnauthorizedException())
       }
+
       try {
         const payload = await this.jwtStrategy.verifyToken(token)
+
         // Join the user room for user scoped notifications
         await socket.join(payload.sub)
 
         // Join the organization room for organization scoped notifications
-        const organizations = await this.organizationService.findByUser(payload.sub)
-        const organizationIds = organizations.map((organization) => organization.id)
-        await socket.join(organizationIds)
+        const organizationId = socket.handshake.query.organizationId as string | undefined
+        if (organizationId) {
+          await socket.join(organizationId)
+        }
+
         next()
       } catch (error) {
         next(new UnauthorizedException())
@@ -68,28 +75,36 @@ export class NotificationGateway implements OnGatewayInit, OnModuleInit {
     })
   }
 
-  emitWorkspaceCreated(workspace: WorkspaceDto) {
-    this.server.to(workspace.organizationId).emit(WorkspaceEvents.CREATED, workspace)
+  emitSandboxCreated(sandbox: SandboxDto) {
+    this.server.to(sandbox.organizationId).emit(SandboxEvents.CREATED, sandbox)
   }
 
-  emitWorkspaceStateUpdated(workspace: WorkspaceDto, oldState: WorkspaceState, newState: WorkspaceState) {
-    this.server.to(workspace.organizationId).emit(WorkspaceEvents.STATE_UPDATED, { workspace, oldState, newState })
+  emitSandboxStateUpdated(sandbox: SandboxDto, oldState: SandboxState, newState: SandboxState) {
+    this.server.to(sandbox.organizationId).emit(SandboxEvents.STATE_UPDATED, { sandbox, oldState, newState })
   }
 
-  emitImageCreated(image: ImageDto) {
-    this.server.to(image.organizationId).emit(ImageEvents.CREATED, image)
+  emitSandboxDesiredStateUpdated(
+    sandbox: SandboxDto,
+    oldDesiredState: SandboxDesiredState,
+    newDesiredState: SandboxDesiredState,
+  ) {
+    this.server
+      .to(sandbox.organizationId)
+      .emit(SandboxEvents.DESIRED_STATE_UPDATED, { sandbox, oldDesiredState, newDesiredState })
   }
 
-  emitImageStateUpdated(image: ImageDto, oldState: ImageState, newState: ImageState) {
-    this.server.to(image.organizationId).emit(ImageEvents.STATE_UPDATED, { image, oldState, newState })
+  emitSnapshotCreated(snapshot: SnapshotDto) {
+    this.server.to(snapshot.organizationId).emit(SnapshotEvents.CREATED, snapshot)
   }
 
-  emitImageEnabledToggled(image: ImageDto) {
-    this.server.to(image.organizationId).emit(ImageEvents.ENABLED_TOGGLED, image)
+  emitSnapshotStateUpdated(snapshot: SnapshotDto, oldState: SnapshotState, newState: SnapshotState) {
+    this.server
+      .to(snapshot.organizationId)
+      .emit(SnapshotEvents.STATE_UPDATED, { snapshot: snapshot, oldState, newState })
   }
 
-  emitImageRemoved(image: ImageDto) {
-    this.server.to(image.organizationId).emit(ImageEvents.REMOVED, image.id)
+  emitSnapshotRemoved(snapshot: SnapshotDto) {
+    this.server.to(snapshot.organizationId).emit(SnapshotEvents.REMOVED, snapshot.id)
   }
 
   emitVolumeCreated(volume: VolumeDto) {
@@ -102,5 +117,13 @@ export class NotificationGateway implements OnGatewayInit, OnModuleInit {
 
   emitVolumeLastUsedAtUpdated(volume: VolumeDto) {
     this.server.to(volume.organizationId).emit(VolumeEvents.LAST_USED_AT_UPDATED, volume)
+  }
+
+  emitAuditLogCreated(auditLog: AuditLogDto) {
+    this.server.to(auditLog.organizationId).emit(AuditLogEvents.CREATED, auditLog)
+  }
+
+  emitAuditLogUpdated(auditLog: AuditLogDto) {
+    this.server.to(auditLog.organizationId).emit(AuditLogEvents.UPDATED, auditLog)
   }
 }

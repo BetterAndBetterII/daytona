@@ -1,9 +1,9 @@
 /*
  * Copyright 2025 Daytona Platforms Inc.
- * SPDX-License-Identifier: AGPL-3.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import * as _path from 'path'
+import * as pathe from 'pathe'
 
 export function prefixRelativePath(prefix: string, path?: string): string {
   let result = prefix
@@ -13,11 +13,11 @@ export function prefixRelativePath(prefix: string, path?: string): string {
     if (path === '~') {
       result = prefix
     } else if (path.startsWith('~/')) {
-      result = _path.join(prefix, path.slice(2))
-    } else if (_path.isAbsolute(path)) {
+      result = pathe.join(prefix, path.slice(2))
+    } else if (pathe.isAbsolute(path)) {
       result = path
     } else {
-      result = _path.join(prefix, path)
+      result = pathe.join(prefix, path)
     }
   }
 

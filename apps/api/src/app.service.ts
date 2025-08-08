@@ -10,7 +10,7 @@ import { OrganizationService } from './organization/services/organization.servic
 import { UserService } from './user/user.service'
 import { ApiKeyService } from './api-key/api-key.service'
 import { EventEmitterReadinessWatcher } from '@nestjs/event-emitter'
-import { ImageService } from './workspace/services/image.service'
+import { SnapshotService } from './sandbox/services/snapshot.service'
 import { SystemRole } from './user/enums/system-role.enum'
 import { TypedConfigService } from './config/typed-config.service'
 
@@ -27,14 +27,14 @@ export class AppService implements OnApplicationBootstrap {
     private readonly organizationService: OrganizationService,
     private readonly apiKeyService: ApiKeyService,
     private readonly eventEmitterReadinessWatcher: EventEmitterReadinessWatcher,
-    private readonly imageService: ImageService,
+    private readonly snapshotService: SnapshotService,
   ) {}
 
   async onApplicationBootstrap() {
     await this.initializeAdminUser()
     await this.initializeTransientRegistry()
     await this.initializeInternalRegistry()
-    await this.initializeDefaultImage()
+    await this.initializeDefaultSnapshot()
   }
 
   private async initializeAdminUser(): Promise<void> {
@@ -50,11 +50,11 @@ export class AppService implements OnApplicationBootstrap {
         totalCpuQuota: 0,
         totalMemoryQuota: 0,
         totalDiskQuota: 0,
-        maxCpuPerWorkspace: 0,
-        maxMemoryPerWorkspace: 0,
-        maxDiskPerWorkspace: 0,
-        imageQuota: 100,
-        maxImageSize: 100,
+        maxCpuPerSandbox: 0,
+        maxMemoryPerSandbox: 0,
+        maxDiskPerSandbox: 0,
+        snapshotQuota: 100,
+        maxSnapshotSize: 100,
         volumeQuota: 0,
       },
       role: SystemRole.ADMIN,
@@ -69,7 +69,7 @@ export class AppService implements OnApplicationBootstrap {
       return
     }
 
-    let registryUrl = this.configService.getOrThrow('transientRegistry.url')
+    const registryUrl = this.configService.getOrThrow('transientRegistry.url')
     const registryAdmin = this.configService.getOrThrow('transientRegistry.admin')
     const registryPassword = this.configService.getOrThrow('transientRegistry.password')
     const registryProjectId = this.configService.getOrThrow('transientRegistry.projectId')
@@ -78,8 +78,6 @@ export class AppService implements OnApplicationBootstrap {
       this.logger.warn('Registry configuration not found, skipping transient registry setup')
       return
     }
-
-    registryUrl = registryUrl.replace(/^(https?:\/\/)/, '')
 
     this.logger.log('Initializing default transient registry...')
 
@@ -102,7 +100,7 @@ export class AppService implements OnApplicationBootstrap {
       return
     }
 
-    let registryUrl = this.configService.getOrThrow('internalRegistry.url')
+    const registryUrl = this.configService.getOrThrow('internalRegistry.url')
     const registryAdmin = this.configService.getOrThrow('internalRegistry.admin')
     const registryPassword = this.configService.getOrThrow('internalRegistry.password')
     const registryProjectId = this.configService.getOrThrow('internalRegistry.projectId')
@@ -111,8 +109,6 @@ export class AppService implements OnApplicationBootstrap {
       this.logger.warn('Registry configuration not found, skipping internal registry setup')
       return
     }
-
-    registryUrl = registryUrl.replace(/^(https?:\/\/)/, '')
 
     this.logger.log('Initializing default internal registry...')
 
@@ -129,27 +125,29 @@ export class AppService implements OnApplicationBootstrap {
     this.logger.log('Default internal registry initialized successfully')
   }
 
-  private async initializeDefaultImage(): Promise<void> {
+  private async initializeDefaultSnapshot(): Promise<void> {
     const adminPersonalOrg = await this.organizationService.findPersonal(DAYTONA_ADMIN_USER_ID)
 
     try {
-      const existingImage = await this.imageService.getImageByName(
-        this.configService.getOrThrow('defaultImage'),
+      const existingSnapshot = await this.snapshotService.getSnapshotByName(
+        this.configService.getOrThrow('defaultSnapshot'),
         adminPersonalOrg.id,
       )
-      if (existingImage) {
+      if (existingSnapshot) {
         return
       }
     } catch {
-      this.logger.log('Default image not found, creating...')
+      this.logger.log('Default snapshot not found, creating...')
     }
 
-    await this.imageService.createImage(
+    const defaultSnapshot = this.configService.getOrThrow('defaultSnapshot')
+
+    await this.snapshotService.createSnapshot(
       adminPersonalOrg,
       {
-        name: this.configService.getOrThrow('defaultImage'),
+        name: defaultSnapshot,
+        imageName: defaultSnapshot,
       },
-      null,
       true,
     )
   }

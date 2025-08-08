@@ -16,16 +16,20 @@ import { UsageOverview } from '@daytonaio/api-client'
 import { handleApiError } from '@/lib/error-handling'
 import QuotaLine from '@/components/QuotaLine'
 import { Skeleton } from '@/components/ui/skeleton'
-import { OrganizationTier } from '@/billing-api/billingApiClient'
+import { OrganizationTier, Tier } from '@/billing-api'
 import { UserProfileIdentity } from './LinkedAccounts'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { toast } from 'sonner'
 
 const Limits: React.FC = () => {
   const { user } = useAuth()
   const { billingApi, organizationsApi } = useApi()
   const { selectedOrganization } = useSelectedOrganization()
   const [organizationTier, setOrganizationTier] = useState<OrganizationTier | null>(null)
+  const [tiers, setTiers] = useState<Tier[]>([])
   const [wallet, setWallet] = useState<OrganizationWallet | null>(null)
   const [usageOverview, setUsage] = useState<UsageOverview | null>(null)
+  const [tierLoading, setTierLoading] = useState(false)
 
   const fetchOrganizationTier = useCallback(async () => {
     if (!import.meta.env.VITE_BILLING_API_URL) {
@@ -34,13 +38,21 @@ const Limits: React.FC = () => {
     if (!selectedOrganization) {
       return
     }
+    setTierLoading(true)
     try {
       const data = await billingApi.getOrganizationTier(selectedOrganization.id)
       setOrganizationTier(data)
     } catch (error) {
       handleApiError(error, 'Failed to fetch organization tier')
+    } finally {
+      setTierLoading(false)
     }
   }, [billingApi, selectedOrganization])
+
+  const fetchTiers = useCallback(async () => {
+    const data = await billingApi.listTiers()
+    setTiers(data)
+  }, [billingApi])
 
   const fetchOrganizationWallet = useCallback(async () => {
     if (!import.meta.env.VITE_BILLING_API_URL) {
@@ -69,16 +81,53 @@ const Limits: React.FC = () => {
     }
   }, [organizationsApi, selectedOrganization])
 
+  const upgradeTier = useCallback(
+    async (tier: number) => {
+      if (!selectedOrganization) {
+        return
+      }
+
+      try {
+        await billingApi.upgradeTier(selectedOrganization.id, tier)
+        toast.success('Tier upgraded successfully')
+        fetchOrganizationTier()
+        fetchUsage()
+      } catch (error) {
+        handleApiError(error, 'Failed to upgrade organization tier')
+      }
+    },
+    [billingApi, selectedOrganization, fetchOrganizationTier, fetchUsage],
+  )
+
+  const downgradeTier = useCallback(
+    async (tier: number) => {
+      if (!selectedOrganization) {
+        return
+      }
+
+      try {
+        await billingApi.downgradeTier(selectedOrganization.id, tier)
+        toast.success('Tier downgraded successfully')
+        fetchOrganizationTier()
+        fetchUsage()
+      } catch (error) {
+        handleApiError(error, 'Failed to downgrade organization tier')
+      }
+    },
+    [billingApi, selectedOrganization, fetchOrganizationTier, fetchUsage],
+  )
+
   useEffect(() => {
     if (import.meta.env.VITE_BILLING_API_URL) {
       // Fetch usage after tier because limits might have changed
       fetchOrganizationTier().finally(() => fetchUsage())
+      fetchTiers()
     } else {
       fetchUsage()
     }
     const interval = setInterval(fetchUsage, 10000)
     return () => clearInterval(interval)
-  }, [fetchOrganizationTier, fetchUsage])
+  }, [fetchOrganizationTier, fetchUsage, fetchTiers])
 
   useEffect(() => {
     fetchOrganizationWallet()
@@ -91,8 +140,7 @@ const Limits: React.FC = () => {
     return (
       <div className="flex items-center gap-1">
         <span className={isHighUsage ? 'text-red-500' : undefined}>
-          {current}/{total}
-          {unit}
+          {current} / {total} {unit}
         </span>
         {isHighUsage && <AlertTriangle className="w-4 h-4 text-red-500" />}
       </div>
@@ -109,8 +157,10 @@ const Limits: React.FC = () => {
   }, [user])
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Limits</h1>
+    <div className="px-6 py-2">
+      <div className="mb-2 h-12 flex items-center justify-between">
+        <h1 className="text-2xl font-medium">Limits</h1>
+      </div>
 
       <Card className="my-4">
         <CardHeader>
@@ -118,7 +168,7 @@ const Limits: React.FC = () => {
             Usage Limits{' '}
             {organizationTier && (
               <Badge variant="outline" className="ml-2 text-sm">
-                Current Tier: {organizationTier.tier}
+                Tier {organizationTier.tier}
               </Badge>
             )}
           </CardTitle>
@@ -134,31 +184,49 @@ const Limits: React.FC = () => {
             </div>
           )}
           {usageOverview && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-1 mt-3">
-                  <span>vCPU:</span>
-                  {getUsageDisplay(usageOverview.currentCpuUsage, usageOverview.totalCpuQuota)}
-                </div>
-                <QuotaLine current={usageOverview.currentCpuUsage} total={usageOverview.totalCpuQuota} />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1 mt-3">
-                  <span>Memory:</span>
-                  {getUsageDisplay(usageOverview.currentMemoryUsage, usageOverview.totalMemoryQuota, 'GB')}
-                </div>
-                <QuotaLine current={usageOverview.currentMemoryUsage} total={usageOverview.totalMemoryQuota} />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1 mt-3">
-                  <span>Disk:</span>
-                  {getUsageDisplay(usageOverview.currentDiskUsage, usageOverview.totalDiskQuota, 'GB')}
-                </div>
-                <QuotaLine current={usageOverview.currentDiskUsage} total={usageOverview.totalDiskQuota} />
-              </div>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Resource</TableHead>
+                  <TableHead>Usage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>Compute</TableCell>
+                  <TableCell>
+                    <div className="max-w-80">
+                      <div className="w-full flex justify-end">
+                        {getUsageDisplay(usageOverview.currentCpuUsage, usageOverview.totalCpuQuota, 'vCPU')}
+                      </div>
+                      <QuotaLine current={usageOverview.currentCpuUsage} total={usageOverview.totalCpuQuota} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Memory</TableCell>
+                  <TableCell>
+                    <div className="max-w-80">
+                      <div className="w-full flex justify-end">
+                        {getUsageDisplay(usageOverview.currentMemoryUsage, usageOverview.totalMemoryQuota, 'GiB')}
+                      </div>
+                      <QuotaLine current={usageOverview.currentMemoryUsage} total={usageOverview.totalMemoryQuota} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Storage</TableCell>
+                  <TableCell>
+                    <div className="max-w-80">
+                      <div className="w-full flex justify-end">
+                        {getUsageDisplay(usageOverview.currentDiskUsage, usageOverview.totalDiskQuota, 'GiB')}
+                      </div>
+                      <QuotaLine current={usageOverview.currentDiskUsage} total={usageOverview.totalDiskQuota} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
@@ -171,15 +239,22 @@ const Limits: React.FC = () => {
               <CardDescription>
                 Your organization is currently in <b>Tier {organizationTier.tier}</b>. Your limits will automatically be
                 increased once you move to the next tier based on the criteria outlined below.
+                <br />
+                Note: For the top up requirements, make sure to top up in a single transaction.
               </CardDescription>
             )}
           </CardHeader>
           <CardContent>
             <TierTable
               creditCardConnected={!!wallet?.creditCardConnected}
-              walletToppedUp={!!organizationTier?.didTopUpTenDollars}
+              organizationTier={organizationTier}
               emailVerified={!!user?.profile?.email_verified}
               githubConnected={githubConnected}
+              tiers={tiers}
+              phoneVerified={!!user?.profile?.phone_verified}
+              tierLoading={tierLoading}
+              onUpgrade={upgradeTier}
+              onDowngrade={downgradeTier}
             />
           </CardContent>
         </Card>

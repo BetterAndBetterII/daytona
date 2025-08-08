@@ -15,7 +15,13 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authHeader := ctx.GetHeader(constants.AUTHORIZATION_HEADER)
+		authHeader := ctx.GetHeader(constants.DAYTONA_AUTHORIZATION_HEADER)
+		if authHeader == "" {
+			authHeader = ctx.GetHeader(constants.AUTHORIZATION_HEADER)
+		}
+
+		ctx.Request.Header.Del(constants.DAYTONA_AUTHORIZATION_HEADER)
+
 		if authHeader == "" {
 			ctx.Error(common.NewUnauthorizedError(errors.New("authorization header required")))
 			ctx.Abort()

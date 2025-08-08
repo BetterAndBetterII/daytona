@@ -28,9 +28,10 @@ import {
 } from './ui/dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { Pagination } from './Pagination'
-import { Loader2 } from 'lucide-react'
+import { Loader2, KeyRound } from 'lucide-react'
 import { DEFAULT_PAGE_SIZE } from '@/constants/Pagination'
 import { getRelativeTimeString } from '@/lib/utils'
+import { TableEmptyState } from './TableEmptyState'
 
 interface DataTableProps {
   data: ApiKeyList[]
@@ -68,7 +69,7 @@ export function ApiKeyTable({ data, loading, loadingKeys, onRevoke }: DataTableP
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead className="px-2" key={header.id}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   )
@@ -91,18 +92,35 @@ export function ApiKeyTable({ data, loading, loadingKeys, onRevoke }: DataTableP
                   className={`${loadingKeys[row.original.name] ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell className="px-2" key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
-              !loading && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )
+              <TableEmptyState
+                colSpan={columns.length}
+                message="No API Keys yet."
+                icon={<KeyRound className="w-8 h-8" />}
+                description={
+                  <div className="space-y-2">
+                    <p>API Keys authenticate requests made through the Daytona SDK or CLI.</p>
+                    <p>
+                      Generate one and{' '}
+                      <a
+                        href="https://www.daytona.io/docs/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-medium"
+                      >
+                        check out the API Key setup guide
+                      </a>
+                      .
+                    </p>
+                  </div>
+                }
+              />
             )}
           </TableBody>
         </Table>
@@ -110,6 +128,30 @@ export function ApiKeyTable({ data, loading, loadingKeys, onRevoke }: DataTableP
       <Pagination table={table} className="mt-4" entityName="API Keys" />
     </div>
   )
+}
+
+const getExpiresAtColor = (expiresAt: Date | null) => {
+  if (!expiresAt) {
+    return 'text-foreground'
+  }
+
+  const MILLISECONDS_IN_MINUTE = 1000 * 60
+  const MINUTES_IN_DAY = 24 * 60
+
+  const diffInMinutes = Math.floor((new Date(expiresAt).getTime() - new Date().getTime()) / MILLISECONDS_IN_MINUTE)
+
+  // Already expired
+  if (diffInMinutes < 0) {
+    return 'text-red-500'
+  }
+
+  // Expires within a day
+  if (diffInMinutes < MINUTES_IN_DAY) {
+    return 'text-yellow-600 dark:text-yellow-400'
+  }
+
+  // Expires in more than a day
+  return 'text-foreground'
 }
 
 const getColumns = ({
@@ -155,14 +197,77 @@ const getColumns = ({
       accessorKey: 'createdAt',
       header: 'Created',
       cell: ({ row }) => {
-        return getRelativeTimeString(row.original.createdAt).relativeTimeString
+        const createdAt = row.original.createdAt
+        const relativeTime = getRelativeTimeString(createdAt).relativeTimeString
+        const fullDate = new Date(createdAt).toLocaleString()
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className="cursor-default">{relativeTime}</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{fullDate}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
       },
     },
     {
       accessorKey: 'lastUsedAt',
       header: 'Last Used',
       cell: ({ row }) => {
-        return getRelativeTimeString(row.original.lastUsedAt).relativeTimeString
+        const lastUsedAt = row.original.lastUsedAt
+        const relativeTime = getRelativeTimeString(lastUsedAt).relativeTimeString
+
+        if (!lastUsedAt) {
+          return relativeTime
+        }
+
+        const fullDate = new Date(lastUsedAt).toLocaleString()
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className="cursor-default">{relativeTime}</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{fullDate}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      accessorKey: 'expiresAt',
+      header: 'Expires',
+      cell: ({ row }) => {
+        const expiresAt = row.original.expiresAt
+        const relativeTime = getRelativeTimeString(expiresAt).relativeTimeString
+
+        if (!expiresAt) {
+          return relativeTime
+        }
+
+        const fullDate = new Date(expiresAt).toLocaleString()
+        const color = getExpiresAtColor(expiresAt)
+
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className={`cursor-default ${color}`}>{relativeTime}</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{fullDate}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
       },
     },
     {

@@ -22,8 +22,9 @@ type Config struct {
 	TLSKeyFile         string `envconfig:"TLS_KEY_FILE"`
 	EnableTLS          bool   `envconfig:"ENABLE_TLS"`
 	CacheRetentionDays int    `envconfig:"CACHE_RETENTION_DAYS"`
-	NodeEnv            string `envconfig:"NODE_ENV"`
+	Environment        string `envconfig:"ENVIRONMENT"`
 	ContainerRuntime   string `envconfig:"CONTAINER_RUNTIME"`
+	ContainerNetwork   string `envconfig:"CONTAINER_NETWORK"`
 	LogFilePath        string `envconfig:"LOG_FILE_PATH"`
 	AWSRegion          string `envconfig:"AWS_REGION"`
 	AWSEndpointUrl     string `envconfig:"AWS_ENDPOINT_URL"`
@@ -72,14 +73,18 @@ func GetContainerRuntime() string {
 	return config.ContainerRuntime
 }
 
-func GetNodeEnv() string {
-	return config.NodeEnv
+func GetContainerNetwork() string {
+	return config.ContainerNetwork
 }
 
-func GetBuildLogFilePath(imageRef string) (string, error) {
-	buildId := imageRef
-	if colonIndex := strings.Index(imageRef, ":"); colonIndex != -1 {
-		buildId = imageRef[:colonIndex]
+func GetEnvironment() string {
+	return config.Environment
+}
+
+func GetBuildLogFilePath(snapshotRef string) (string, error) {
+	buildId := snapshotRef
+	if colonIndex := strings.Index(snapshotRef, ":"); colonIndex != -1 {
+		buildId = snapshotRef[:colonIndex]
 	}
 
 	c, err := GetConfig()

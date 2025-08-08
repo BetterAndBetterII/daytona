@@ -1,12 +1,21 @@
 /*
  * Copyright 2025 Daytona Platforms Inc.
- * SPDX-License-Identifier: AGPL-3.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Command, Session, SessionExecuteRequest, SessionExecuteResponse, ToolboxApi } from '@daytonaio/api-client'
-import { SandboxCodeToolbox, SandboxInstance } from './Sandbox'
+import {
+  Command,
+  Configuration,
+  Session,
+  SessionExecuteRequest,
+  SessionExecuteResponse,
+  ToolboxApi,
+} from '@daytonaio/api-client'
+import { SandboxCodeToolbox } from './Sandbox'
 import { ExecuteResponse } from './types/ExecuteResponse'
 import { ArtifactParser } from './utils/ArtifactParser'
+import { processStreamingResponse } from './utils/Stream'
+import { Buffer } from 'buffer'
 
 /**
  * Parameters for code execution.
@@ -29,9 +38,10 @@ export class CodeRunParams {
  */
 export class Process {
   constructor(
+    private readonly sandboxId: string,
+    private readonly clientConfig: Configuration,
     private readonly codeToolbox: SandboxCodeToolbox,
     private readonly toolboxApi: ToolboxApi,
-    private readonly instance: SandboxInstance,
     private readonly getRootDir: () => Promise<string>,
   ) {}
 
@@ -83,7 +93,7 @@ export class Process {
 
     command = `sh -c "${command}"`
 
-    const response = await this.toolboxApi.executeCommand(this.instance.id, {
+    const response = await this.toolboxApi.executeCommand(this.sandboxId, {
       command,
       timeout,
       cwd: cwd ?? (await this.getRootDir()),
@@ -182,7 +192,7 @@ export class Process {
    * await process.deleteSession(sessionId);
    */
   public async createSession(sessionId: string): Promise<void> {
-    await this.toolboxApi.createSession(this.instance.id, {
+    await this.toolboxApi.createSession(this.sandboxId, {
       sessionId,
     })
   }
@@ -202,7 +212,7 @@ export class Process {
    * });
    */
   public async getSession(sessionId: string): Promise<Session> {
-    const response = await this.toolboxApi.getSession(this.instance.id, sessionId)
+    const response = await this.toolboxApi.getSession(this.sandboxId, sessionId)
     return response.data
   }
 
@@ -223,7 +233,7 @@ export class Process {
    * }
    */
   public async getSessionCommand(sessionId: string, commandId: string): Promise<Command> {
-    const response = await this.toolboxApi.getSessionCommand(this.instance.id, sessionId, commandId)
+    const response = await this.toolboxApi.getSessionCommand(this.sandboxId, sessionId, commandId)
     return response.data
   }
 
@@ -261,7 +271,7 @@ export class Process {
     timeout?: number,
   ): Promise<SessionExecuteResponse> {
     const response = await this.toolboxApi.executeSessionCommand(
-      this.instance.id,
+      this.sandboxId,
       sessionId,
       req,
       undefined,
@@ -306,29 +316,18 @@ export class Process {
     onLogs?: (chunk: string) => void,
   ): Promise<string | void> {
     if (!onLogs) {
-      const response = await this.toolboxApi.getSessionCommandLogs(this.instance.id, sessionId, commandId)
+      const response = await this.toolboxApi.getSessionCommandLogs(this.sandboxId, sessionId, commandId)
       return response.data
     }
 
-    await new Promise<void>((resolve, reject) => {
-      this.toolboxApi
-        .getSessionCommandLogs(this.instance.id, sessionId, commandId, undefined, true, { responseType: 'stream' })
-        .then((res) => {
-          const stream = res.data as any
+    const url = `${this.clientConfig.basePath}/toolbox/${this.sandboxId}/toolbox/process/session/${sessionId}/command/${commandId}/logs?follow=true`
 
-          this.streamWithStatusPoll(
-            stream,
-            (chunk: string) => onLogs(chunk),
-            async () => {
-              const statusRes = await this.getSessionCommand(sessionId, commandId)
-              return statusRes.exitCode
-            },
-          )
-            .then(() => resolve())
-            .catch((err) => reject(err))
-        })
-        .catch((err) => reject(err))
-    })
+    await processStreamingResponse(
+      () => fetch(url, { method: 'GET', headers: this.clientConfig.baseOptions.headers }),
+      onLogs,
+      () =>
+        this.getSessionCommand(sessionId, commandId).then((res) => res.exitCode !== null && res.exitCode !== undefined),
+    )
   }
 
   /**
@@ -346,7 +345,7 @@ export class Process {
    * });
    */
   public async listSessions(): Promise<Session[]> {
-    const response = await this.toolboxApi.listSessions(this.instance.id)
+    const response = await this.toolboxApi.listSessions(this.sandboxId)
     return response.data
   }
 
@@ -361,69 +360,6 @@ export class Process {
    * await process.deleteSession('my-session');
    */
   public async deleteSession(sessionId: string): Promise<void> {
-    await this.toolboxApi.deleteSession(this.instance.id, sessionId)
-  }
-
-  private async streamWithStatusPoll(
-    stream: any,
-    onLogs: (chunk: string) => void,
-    getExitCode: () => Promise<number | undefined>,
-  ): Promise<void> {
-    let nextChunkPromise: Promise<Buffer | null> | null = null
-    let exitCodeSeenCount = 0
-
-    const readNext = (): Promise<Buffer | null> => {
-      return new Promise((resolve) => {
-        const onData = (data: Buffer) => {
-          cleanup()
-          resolve(data)
-        }
-        const onClose = () => {
-          cleanup()
-          resolve(null)
-        }
-        const onError = () => {
-          cleanup()
-          resolve(null)
-        }
-        function cleanup() {
-          stream.off('data', onData)
-          stream.off('close', onClose)
-          stream.off('error', onError)
-        }
-        stream.once('data', onData)
-        stream.once('close', onClose)
-        stream.once('error', onError)
-      })
-    }
-
-    while (true) {
-      // kick off reading and polling race
-      if (!nextChunkPromise) {
-        nextChunkPromise = readNext()
-      }
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000))
-
-      const result = await Promise.race([nextChunkPromise, timeoutPromise])
-
-      if (result instanceof Buffer) {
-        // got data
-        const chunk = result.toString('utf8')
-        onLogs(chunk)
-        nextChunkPromise = null // reset for next loop
-        exitCodeSeenCount = 0 // reset exit-code counter
-      } /* result === null from timeout */ else {
-        const exit_code = await getExitCode()
-        if (exit_code != undefined && exit_code != null) {
-          exitCodeSeenCount += 1
-          // after seeing finished status twice in a row, break
-          if (exitCodeSeenCount > 1) {
-            stream.destroy()
-            break
-          }
-        }
-        // else loop again: nextChunkPromise still pending
-      }
-    }
+    await this.toolboxApi.deleteSession(this.sandboxId, sessionId)
   }
 }
