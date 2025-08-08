@@ -7,7 +7,7 @@
 FROM docker.io/golang:1.23-alpine AS builder
 WORKDIR /src
 ENV NX_DAEMON=false
-RUN apk add --no-cache git bash build-base nodejs npm libx11-dev libxtst-dev pkgconf
+RUN apk add --no-cache git bash build-base nodejs npm libx11-dev libxtst-dev libxext-dev pkgconf
 
 # Enable go modules caching
 COPY go.work go.work.sum* ./
