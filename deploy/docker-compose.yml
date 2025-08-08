@@ -256,7 +256,7 @@ services:
       retries: 3
 
 volumes:
-  db_data: {}
+  db_data: {}  # 数据库数据卷，{}表示不使用任何配置
   minio_data: {}
   registry_data: {}
   redis_data: {}

@@ -10,7 +10,8 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.schemata WHERE schema_name = 'daytona'
   ) THEN
-    EXECUTE 'CREATE SCHEMA daytona AUTHORIZATION ' || current_user || ';';
+    -- 使用 format(%I) 安全引用标识符，避免 current_user 为保留字（如 user）时报错
+    EXECUTE format('CREATE SCHEMA %I AUTHORIZATION %I', 'daytona', current_user);
   END IF;
 END$$;
 
