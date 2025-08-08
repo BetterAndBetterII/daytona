@@ -1,0 +1,228 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:11.9
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_DB: ${POSTGRES_DB:-application_ctx}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d application_ctx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_IDENTITY_STS_EXPIRY: "24h"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/minio/health/live >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  registry:
+    image: registry:2.8.2
+    restart: unless-stopped
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+    volumes:
+      - registry_data:/var/lib/registry
+    ports:
+      - "5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/v2/_catalog >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  registry-ui:
+    image: joxit/docker-registry-ui:main
+    restart: unless-stopped
+    environment:
+      SINGLE_REGISTRY: 'true'
+      REGISTRY_TITLE: Docker Registry UI
+      DELETE_IMAGES: 'true'
+      SHOW_CONTENT_DIGEST: 'true'
+      NGINX_PROXY_PASS_URL: http://registry:5000
+      SHOW_CATALOG_NB_TAGS: 'true'
+      TAGLIST_PAGE_SIZE: 100
+      REGISTRY_SECURED: 'false'
+      CATALOG_ELEMENTS_LIMIT: 1000
+    depends_on:
+      - registry
+    ports:
+      - "8082:80"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:8080}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USERNAME: ${DB_USERNAME:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-pass}
+      DB_DATABASE: ${DB_DATABASE:-application_ctx}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      SKIP_CONNECTIONS: ${SKIP_CONNECTIONS:-false}
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "3000:3000"
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/log/app:rw,size=100m
+    volumes:
+      - logs_api:/var/log/app
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+      args:
+        VITE_API_URL: http://api:3000
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:8080"
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/log/app:rw,size=100m
+    volumes:
+      - logs_dashboard:/var/log/app
+
+  runner:
+    build:
+      context: .
+      dockerfile: apps/runner/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3003:8080"
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /app/logs:rw,size=100m
+    environment:
+      API_TOKEN: ${API_TOKEN:-secret_api_token}
+      API_PORT: ${API_PORT:-8080}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_FILE_PATH: ${LOG_FILE_PATH:-/app/logs/runner.log}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - runner_tmp:/app/.tmp
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  daemon:
+    build:
+      context: .
+      dockerfile: apps/daemon/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "22222:22222"
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /app/logs:rw,size=100m
+    environment:
+      DAYTONA_DAEMON_LOG_FILE_PATH: /app/logs/daemon.log
+    volumes:
+      - logs_daemon:/app/logs
+
+  proxy:
+    build:
+      context: .
+      dockerfile: apps/proxy/Dockerfile
+    restart: unless-stopped
+    environment:
+      PROXY_PORT: ${PROXY_PORT:-4000}
+      PROXY_DOMAIN: ${PROXY_DOMAIN:-localhost}
+      PROXY_PROTOCOL: ${PROXY_PROTOCOL:-http}
+      PROXY_API_KEY: ${PROXY_API_KEY:-dev-proxy-key}
+      DAYTONA_API_URL: ${DAYTONA_API_URL:-http://api:3000}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-dev-client}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-dev-secret}
+      OIDC_DOMAIN: ${OIDC_DOMAIN:-http://dex:5556}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-dev-aud}
+    depends_on:
+      - api
+    ports:
+      - "4000:4000"
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /var/log/app:rw,size=100m
+    volumes:
+      - logs_proxy:/var/log/app
+
+volumes:
+  db_data: {}
+  minio_data: {}
+  registry_data: {}
+  redis_data: {}
+  logs_api: {}
+  logs_dashboard: {}
+  logs_runner: {}
+  logs_daemon: {}
+  logs_proxy: {}
+  runner_tmp: {}
+
+networks:
+  internal:
+    driver: bridge
+

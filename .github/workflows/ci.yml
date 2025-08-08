@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install deps
+        run: yarn install --immutable
+
+      - name: Lint TS
+        run: yarn lint:ts
+
+      - name: Build (production)
+        run: yarn build:production
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Go Build (runner)
+        run: yarn nx run runner:build-amd64
+
+      - name: Go Build (daemon)
+        run: yarn nx run daemon:build-amd64
+
+      - name: Go Build (proxy)
+        run: yarn nx run proxy:build-amd64
+
+  docker-images:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Define tags
+        id: vars
+        run: |
+          REPO=ghcr.io/${{ github.repository_owner }}/daytona
+          echo "repo=${REPO}" >> $GITHUB_OUTPUT
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.repo }}-api:sha-${{ steps.vars.outputs.sha }}
+
+      - name: Build & Push Dashboard
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/dashboard/Dockerfile
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            VITE_API_URL=http://api:3000
+          tags: |
+            ${{ steps.vars.outputs.repo }}-dashboard:sha-${{ steps.vars.outputs.sha }}
+
+      - name: Build & Push Runner
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/runner/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.repo }}-runner:sha-${{ steps.vars.outputs.sha }}
+
+      - name: Build & Push Daemon
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/daemon/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.repo }}-daemon:sha-${{ steps.vars.outputs.sha }}
+
+      - name: Build & Push Proxy
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/proxy/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.repo }}-proxy:sha-${{ steps.vars.outputs.sha }}
+
+      - name: Build & Push CLI
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/cli/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.vars.outputs.repo }}-cli:sha-${{ steps.vars.outputs.sha }}

@@ -15,6 +15,20 @@
         "production": {}
       }
     },
+    "build-amd64": {
+      "executor": "@nx-go/nx-go:build",
+      "options": {
+        "main": "{projectRoot}/cmd/proxy/main.go",
+        "outputPath": "dist/apps/proxy-amd64",
+        "env": {
+          "GOARCH": "amd64",
+          "GOOS": "linux"
+        }
+      },
+      "configurations": {
+        "production": {}
+      }
+    },
     "serve": {
       "executor": "@nx-go/nx-go:serve",
       "options": {
