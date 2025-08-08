@@ -70,7 +70,6 @@ jobs:
     name: "Docker Image (${{ matrix.name }})"
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    needs: build-and-test
     strategy:
       fail-fast: false
       matrix:
