@@ -281,7 +281,7 @@ create_env_file() {
     local minio_user="minio_$(openssl rand -hex 4 2>/dev/null || echo "$(date +%s | tail -c 5)")"
     
     # 更新关键安全配置
-    sed -i.bak "s/DB_PASSWORD=daytona_db_pass_123/DB_PASSWORD=${db_password}/" .env
+    sed -i.bak "s/POSTGRES_PASSWORD=daytona_db_pass_123/POSTGRES_PASSWORD=${db_password}/" .env
     sed -i.bak "s/MINIO_ROOT_PASSWORD=daytona_minio_pass_123/MINIO_ROOT_PASSWORD=${minio_password}/" .env
     sed -i.bak "s/MINIO_ROOT_USER=minioadmin/MINIO_ROOT_USER=${minio_user}/" .env
     sed -i.bak "s/S3_ACCESS_KEY=minioadmin/S3_ACCESS_KEY=${minio_user}/" .env
@@ -294,7 +294,7 @@ create_env_file() {
     
     log_success "环境配置文件创建完成"
     log_info "已生成随机密码，详细信息如下："
-    log_info "  数据库密码: ${db_password}"
+    log_info "  PostgreSQL密码: ${db_password}"
     log_info "  MinIO用户名: ${minio_user}"
     log_info "  MinIO密码: ${minio_password}"
     log_info "  API令牌: ${api_token}"

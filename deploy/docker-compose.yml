@@ -98,9 +98,9 @@ services:
       DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:8080}
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-5432}
-      DB_USERNAME: ${DB_USERNAME:-user}
-      DB_PASSWORD: ${DB_PASSWORD:-pass}
-      DB_DATABASE: ${DB_DATABASE:-application_ctx}
+      DB_USERNAME: ${POSTGRES_USER:-user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      DB_DATABASE: ${POSTGRES_DB:-application_ctx}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       SKIP_CONNECTIONS: ${SKIP_CONNECTIONS:-false}
@@ -117,6 +117,12 @@ services:
       - /tmp
     volumes:
       - logs_api:/var/log/app
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT:-3000}/api >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
 
   dashboard:
     image: ghcr.io/betterandbetterii/daytona-dashboard:latest
@@ -201,6 +207,12 @@ services:
     volumes:
       - logs_proxy:/var/log/app
       - ../.env:/app/.env:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${PROXY_PORT:-4000}/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 volumes:
   db_data: {}
