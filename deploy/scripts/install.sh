@@ -310,12 +310,25 @@ start_daytona() {
     
     cd deploy || error_exit "无法进入deploy目录"
     
-    # 启动服务
-    docker compose --env-file ../.env up -d || {
-        error_exit "启动服务失败，请检查docker-compose.yml配置"
-    }
+    # 增量拉取并仅重建有变更的服务
+    if docker compose up --help 2>/dev/null | grep -q -- "--pull"; then
+        log_info "增量拉取并启动服务 (--pull always)..."
+        docker compose --env-file ../.env up -d --remove-orphans --pull always || {
+            error_exit "启动服务失败，请检查docker-compose.yml配置"
+        }
+    else
+        log_info "检测到 compose 不支持 --pull，使用兼容路径: pull + up -d"
+        docker compose --env-file ../.env pull || {
+            log_warn "部分镜像拉取失败，将继续使用本地镜像（如果有）"
+        }
+        log_info "启动服务..."
+        docker compose --env-file ../.env up -d --remove-orphans || {
+            error_exit "启动服务失败，请检查docker-compose.yml配置"
+        }
+    fi
     
     log_success "Daytona服务启动完成"
+    log_info "所有服务已使用最新镜像启动"
 }
 
 # 验证服务状态
@@ -356,20 +369,25 @@ show_access_info() {
     # 显示MinIO访问凭据
     if [[ -f "../.env" ]]; then
         echo "🔑 MinIO访问凭据:"
-        local minio_user minio_password
-        minio_user=$(grep "^MINIO_ROOT_USER=" ../.env | cut -d'=' -f2-)
-        minio_password=$(grep "^MINIO_ROOT_PASSWORD=" ../.env | cut -d'=' -f2-)
-        echo "  用户名: ${minio_user}"
-        echo "  密码: ${minio_password}"
+        local minio_user="" minio_password=""
+        minio_user=$(awk -F= '/^MINIO_ROOT_USER=/{print substr($0, index($0,"=")+1)}' ../.env)
+        minio_password=$(awk -F= '/^MINIO_ROOT_PASSWORD=/{print substr($0, index($0,"=")+1)}' ../.env)
+        echo "  用户名: ${minio_user:-未设置}"
+        echo "  密码: ${minio_password:-未设置}"
         echo "=========================================="
         echo
     fi
     
-    echo "📝 管理命令:"
+    echo "📝 管理命令:"jiang
     echo "  查看状态: docker compose ps"
     echo "  查看日志: docker compose logs [service]"
     echo "  停止服务: docker compose down"
     echo "  重启服务: docker compose restart"
+    if docker compose up --help 2>/dev/null | grep -q -- "--pull"; then
+        echo "  更新服务: docker compose --env-file ../.env up -d --remove-orphans --pull always"
+    else
+        echo "  更新服务: docker compose --env-file ../.env pull && docker compose --env-file ../.env up -d --remove-orphans"
+    fi
     echo "  备份数据: ./scripts/backup.sh"
     echo "  恢复数据: ./scripts/restore.sh <backup_dir>"
     echo "=========================================="

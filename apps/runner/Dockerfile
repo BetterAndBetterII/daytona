@@ -32,12 +32,16 @@ RUN yarn nx run runner:build-amd64
 # ---------- Runtime ----------
 FROM docker.io/alpine:3.20 AS runtime
 WORKDIR /app
-RUN apk add --no-cache ca-certificates bash git \
+RUN apk add --no-cache ca-certificates bash git su-exec \
     && addgroup -g 1001 -S app \
     && adduser -S app -u 1001 -G app
 
-# Copy runner binary
+# Copy runner binary and entrypoint script
 COPY --from=builder /src/dist/apps/runner-amd64 /app/runner
+COPY runner-entrypoint.sh /app/runner-entrypoint.sh
+
+# Make entrypoint script executable
+RUN chmod +x /app/runner-entrypoint.sh
 
 # Runner listens on API_PORT (default 8080)
 ENV API_PORT=8080
@@ -47,5 +51,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:${API_PORT}/ || exit 1
 
-USER app
-ENTRYPOINT ["/app/runner"]
+WORKDIR /app
+ENTRYPOINT ["/app/runner-entrypoint.sh"]

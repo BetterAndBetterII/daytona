@@ -54,6 +54,77 @@ pip install daytona
 npm install @daytonaio/sdk
 ```
 
+### Docker 容器化部署（一键安装）
+
+快速部署完整的 Daytona 容器化环境，包含所有核心服务：
+
+```bash
+# 一键安装（推荐）
+curl -L 'https://raw.githubusercontent.com/BetterAndBetterII/daytona/main/deploy/scripts/install.sh' -o /tmp/install.sh && sudo bash /tmp/install.sh
+```
+
+**支持系统：**
+- **Linux**: Ubuntu 18.04+, CentOS 7+, Debian 9+
+- **macOS**: macOS 10.14+
+
+**安装要求：**
+- Docker 20.10+
+- Docker Compose 2.0+
+- 4GB+ 内存
+- 10GB+ 磁盘空间
+
+**手动安装方式：**
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/BetterAndBetterII/daytona.git
+cd daytona
+
+# 2. 运行一键安装脚本
+sudo ./deploy/scripts/install.sh
+```
+
+**安装完成后访问：**
+- 🌐 **Dashboard**: http://localhost:8080
+- 🔌 **API**: http://localhost:3001
+- 🏃 **Runner**: http://localhost:3003
+- 🔀 **Proxy**: http://localhost:4000
+- 📊 **Registry UI**: http://localhost:8082
+- 💾 **MinIO**: http://localhost:9001
+
+**管理命令：**
+```bash
+# 查看服务状态
+cd daytona/deploy && docker compose ps
+
+# 查看服务日志
+docker compose logs [service]
+
+# 停止服务
+docker compose down
+
+# 重启服务
+docker compose restart
+
+# 更新服务（拉取最新镜像并重启）
+docker compose --env-file ../.env pull && docker compose --env-file ../.env up -d --force-recreate
+
+# 备份数据
+./scripts/backup.sh
+
+# 恢复数据
+./scripts/restore.sh <backup_dir>
+
+# 查看生成的凭据
+./scripts/show-credentials.sh
+```
+
+**更新说明：**
+- 一键安装脚本会自动拉取最新版本的镜像
+- 如需手动更新服务，请使用上述更新命令
+- 更新过程中会自动清理旧版本的悬空镜像
+- 如需清理所有旧版本镜像，请手动执行：`docker image prune -f`
+
 ---
 
 ## Features
