@@ -11,7 +11,7 @@ COPY apps/daemon/go.mod apps/daemon/go.sum ./apps/daemon/
 RUN --mount=type=cache,target=/go/pkg/mod true
 
 COPY . .
-RUN corepack enable && yarn install --immutable
+RUN npm i -g corepack && corepack enable && corepack prepare yarn@4.6.0 --activate && yarn install --immutable
 RUN yarn nx run daemon:prepare
 RUN yarn nx run daemon:build-amd64
 

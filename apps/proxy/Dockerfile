@@ -11,7 +11,7 @@ COPY apps/proxy/go.mod apps/proxy/go.sum ./apps/proxy/
 RUN --mount=type=cache,target=/go/pkg/mod true
 
 COPY . .
-RUN corepack enable && yarn install --immutable
+RUN npm i -g corepack && corepack enable && corepack prepare yarn@4.6.0 --activate && yarn install --immutable
 RUN yarn nx run proxy:build
 
 FROM docker.io/alpine:3.20 AS runtime

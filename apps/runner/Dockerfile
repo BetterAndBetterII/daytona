@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 
 # Build daemon assets and binaries referenced by runner embed copy tasks
-RUN corepack enable && yarn install --immutable
+RUN npm i -g corepack && corepack enable && corepack prepare yarn@4.6.0 --activate && yarn install --immutable
 RUN yarn nx run daemon:build-amd64
 RUN yarn nx run computer-use:build-amd64
 

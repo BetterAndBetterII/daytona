@@ -67,8 +67,45 @@ jobs:
         run: yarn nx run proxy:build-amd64
 
   docker-images:
+    name: "Docker Image (${{ matrix.name }})"
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: ./apps/api/Dockerfile
+            context: .
+            suffix: api
+            build_args: ""
+          - name: dashboard
+            dockerfile: ./apps/dashboard/Dockerfile
+            context: .
+            suffix: dashboard
+            build_args: |
+              VITE_API_URL=http://api:3000
+          - name: runner
+            dockerfile: ./apps/runner/Dockerfile
+            context: .
+            suffix: runner
+            build_args: ""
+          - name: daemon
+            dockerfile: ./apps/daemon/Dockerfile
+            context: .
+            suffix: daemon
+            build_args: ""
+          - name: proxy
+            dockerfile: ./apps/proxy/Dockerfile
+            context: .
+            suffix: proxy
+            build_args: ""
+          - name: cli
+            dockerfile: ./apps/cli/Dockerfile
+            context: .
+            suffix: cli
+            build_args: ""
     permissions:
       contents: read
       packages: write
@@ -99,64 +136,15 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           echo "sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Build & Push API
+      - name: Build & Push ${{ matrix.name }}
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./apps/api/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ steps.vars.outputs.repo }}-api:sha-${{ steps.vars.outputs.sha }}
-
-      - name: Build & Push Dashboard
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./apps/dashboard/Dockerfile
-          platforms: linux/amd64
-          push: true
-          build-args: |
-            VITE_API_URL=http://api:3000
-          tags: |
-            ${{ steps.vars.outputs.repo }}-dashboard:sha-${{ steps.vars.outputs.sha }}
-
-      - name: Build & Push Runner
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./apps/runner/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.vars.outputs.repo }}-runner:sha-${{ steps.vars.outputs.sha }}
-
-      - name: Build & Push Daemon
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./apps/daemon/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.vars.outputs.repo }}-daemon:sha-${{ steps.vars.outputs.sha }}
-
-      - name: Build & Push Proxy
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./apps/proxy/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.vars.outputs.repo }}-proxy:sha-${{ steps.vars.outputs.sha }}
-
-      - name: Build & Push CLI
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./apps/cli/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ${{ steps.vars.outputs.repo }}-cli:sha-${{ steps.vars.outputs.sha }}
+            ${{ steps.vars.outputs.repo }}-${{ matrix.suffix }}:sha-${{ steps.vars.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: ${{ matrix.build_args }}
