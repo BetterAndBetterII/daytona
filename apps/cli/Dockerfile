@@ -4,7 +4,7 @@
 
 FROM docker.io/golang:1.23-alpine AS builder
 WORKDIR /src
-RUN apk add --no-cache git build-base
+RUN apk add --no-cache git build-base nodejs npm
 
 COPY go.work go.work.sum* ./
 COPY apps/cli/go.mod apps/cli/go.sum ./apps/cli/
