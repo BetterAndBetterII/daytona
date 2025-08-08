@@ -81,6 +81,40 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# 安全设置/更新 .env 中的键值（整个行替换，自动转义特殊字符）
+set_env_var() {
+    local key="$1"
+    local value="$2"
+    # 转义 sed 替换段中的特殊字符: \\ / & |
+    local escaped
+    escaped=$(printf '%s' "$value" | sed -e 's/[\\/&|]/\\&/g')
+    if grep -qE "^${key}=" .env; then
+        sed -i.bak "s|^${key}=.*$|${key}=${escaped}|" .env
+    else
+        printf '%s=%s\n' "$key" "$value" >> .env
+    fi
+}
+
+# 获取 .env 中某个键的值（不存在则返回空）
+get_env_value() {
+    local key="$1"
+    awk -F= -v k="${key}" 'BEGIN{ret=""} $1==k{ $1=""; sub(/^=/, ""); ret=$0 } END{ print ret }' .env 2>/dev/null || true
+}
+
+# 若当前值为空或为占位/默认值，则写入新值；否则保持不变
+ensure_env_secret() {
+    local key="$1"
+    local new_value="$2"
+    local current
+    current=$(get_env_value "$key")
+    # 认为以下为默认/占位：空、minioadmin、包含 _123 结尾、或明确的 daytona_*_123
+    if [[ -z "${current}" || "${current}" == "minioadmin" || "${current}" == *_123 || "${current}" == daytona_*_123 ]]; then
+        set_env_var "$key" "$new_value"
+        return 0
+    fi
+    return 1
+}
+
 # 检查Docker版本
 check_docker_version() {
     if ! command_exists docker; then
@@ -270,27 +304,27 @@ create_env_file() {
     # 复制环境配置模板
     cp .env.example .env || error_exit "无法复制.env.example到.env"
     
-    # 生成随机密码
+    # 生成随机密码（避免含有 / + & | 等特殊字符）
     local db_password minio_password api_token proxy_key
-    db_password=$(openssl rand -base64 32 2>/dev/null || echo "daytona_db_pass_$(date +%s)")
-    minio_password=$(openssl rand -base64 32 2>/dev/null || echo "daytona_minio_pass_$(date +%s)")
+    db_password=$(openssl rand -hex 32 2>/dev/null || echo "daytona_db_pass_$(date +%s)")
+    minio_password=$(openssl rand -hex 32 2>/dev/null || echo "daytona_minio_pass_$(date +%s)")
     api_token=$(openssl rand -base64 32 2>/dev/null | tr -d '/+' | cut -c1-32 || echo "daytona_api_token_$(date +%s)")
     proxy_key=$(openssl rand -base64 32 2>/dev/null | tr -d '/+' | cut -c1-32 || echo "daytona_proxy_key_$(date +%s)")
     
     # 生成随机MinIO用户名
     local minio_user="minio_$(openssl rand -hex 4 2>/dev/null || echo "$(date +%s | tail -c 5)")"
     
-    # 更新关键安全配置
-    sed -i.bak "s/POSTGRES_PASSWORD=daytona_db_pass_123/POSTGRES_PASSWORD=${db_password}/" .env
-    sed -i.bak "s/MINIO_ROOT_PASSWORD=daytona_minio_pass_123/MINIO_ROOT_PASSWORD=${minio_password}/" .env
-    sed -i.bak "s/MINIO_ROOT_USER=minioadmin/MINIO_ROOT_USER=${minio_user}/" .env
-    sed -i.bak "s/S3_ACCESS_KEY=minioadmin/S3_ACCESS_KEY=${minio_user}/" .env
-    sed -i.bak "s/S3_SECRET_KEY=minioadmin/S3_SECRET_KEY=${minio_password}/" .env
-    sed -i.bak "s/API_TOKEN=daytona_api_token_123/API_TOKEN=${api_token}/" .env
-    sed -i.bak "s/PROXY_API_KEY=daytona_proxy_key_123/PROXY_API_KEY=${proxy_key}/" .env
+    # 更新关键安全配置（按键名整行替换，更稳健；仅在占位/缺失时写入）
+    ensure_env_secret "POSTGRES_PASSWORD" "$db_password" || true
+    ensure_env_secret "MINIO_ROOT_PASSWORD" "$minio_password" || true
+    ensure_env_secret "MINIO_ROOT_USER" "$minio_user" || true
+    ensure_env_secret "S3_ACCESS_KEY" "$minio_user" || true
+    ensure_env_secret "S3_SECRET_KEY" "$minio_password" || true
+    ensure_env_secret "API_TOKEN" "$api_token" || true
+    ensure_env_secret "PROXY_API_KEY" "$proxy_key" || true
     
     # 删除备份文件
-    rm -f .env.bak
+    rm -f .env.bak || true
     
     log_success "环境配置文件创建完成"
     log_info "已生成随机密码，详细信息如下："
@@ -394,7 +428,7 @@ show_access_info() {
         echo
     fi
     
-    echo "📝 管理命令:"jiang
+    echo "📝 管理命令:"
     echo "  查看状态: docker compose ps"
     echo "  查看日志: docker compose logs [service]"
     echo "  停止服务: docker compose down"
