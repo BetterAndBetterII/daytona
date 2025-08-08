@@ -305,9 +305,8 @@ create_env_file() {
     cp .env.example .env || error_exit "无法复制.env.example到.env"
     
     # 生成随机密码（避免含有 / + & | 等特殊字符）
-    local db_password minio_password api_token proxy_key
+    local db_password api_token proxy_key
     db_password=$(openssl rand -hex 32 2>/dev/null || echo "daytona_db_pass_$(date +%s)")
-    minio_password=$(openssl rand -hex 32 2>/dev/null || echo "daytona_minio_pass_$(date +%s)")
     api_token=$(openssl rand -base64 32 2>/dev/null | tr -d '/+' | cut -c1-32 || echo "daytona_api_token_$(date +%s)")
     proxy_key=$(openssl rand -base64 32 2>/dev/null | tr -d '/+' | cut -c1-32 || echo "daytona_proxy_key_$(date +%s)")
     
@@ -316,10 +315,6 @@ create_env_file() {
     
     # 更新关键安全配置（按键名整行替换，更稳健；仅在占位/缺失时写入）
     ensure_env_secret "POSTGRES_PASSWORD" "$db_password" || true
-    ensure_env_secret "MINIO_ROOT_PASSWORD" "$minio_password" || true
-    ensure_env_secret "MINIO_ROOT_USER" "$minio_user" || true
-    ensure_env_secret "S3_ACCESS_KEY" "$minio_user" || true
-    ensure_env_secret "S3_SECRET_KEY" "$minio_password" || true
     ensure_env_secret "API_TOKEN" "$api_token" || true
     ensure_env_secret "PROXY_API_KEY" "$proxy_key" || true
     
@@ -330,7 +325,6 @@ create_env_file() {
     log_info "已生成随机密码，详细信息如下："
     log_info "  PostgreSQL密码: ${db_password}"
     log_info "  MinIO用户名: ${minio_user}"
-    log_info "  MinIO密码: ${minio_password}"
     log_info "  API令牌: ${api_token}"
     log_info "  代理密钥: ${proxy_key}"
     log_warn "请妥善保存这些信息，建议将.env文件备份到安全位置"

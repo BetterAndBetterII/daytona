@@ -57,8 +57,8 @@ services:
     image: minio/minio:latest
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
       MINIO_IDENTITY_STS_EXPIRY: "24h"
     command: server /data --console-address ":9001"
     volumes:
@@ -111,6 +111,46 @@ services:
     networks:
       - internal
 
+  api-migrate:
+    image: ghcr.io/betterandbetterii/daytona-api:latest
+    restart: "no"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:8080}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USERNAME: ${POSTGRES_USER:-user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+      DB_DATABASE: ${POSTGRES_DB:-application_ctx}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      SKIP_CONNECTIONS: ${SKIP_CONNECTIONS:-false}
+      # S3 Object Storage Configuration
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_STS_ENDPOINT: ${S3_STS_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_DEFAULT_BUCKET: ${S3_DEFAULT_BUCKET:-daytona-bucket}
+      S3_ACCOUNT_ID: ${S3_ACCOUNT_ID}
+      S3_ROLE_NAME: ${S3_ROLE_NAME}
+      # OIDC Authentication Configuration
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-daytona-api-client}
+      OIDC_ISSUER_BASE_URL: ${OIDC_ISSUER_BASE_URL:-http://keycloak:8080/realms/master}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-daytona-audience}
+      OIDC_MANAGEMENT_API_ENABLED: ${OIDC_MANAGEMENT_API_ENABLED:-false}
+      OIDC_MANAGEMENT_API_CLIENT_ID: ${OIDC_MANAGEMENT_API_CLIENT_ID}
+      OIDC_MANAGEMENT_API_CLIENT_SECRET: ${OIDC_MANAGEMENT_API_CLIENT_SECRET}
+      OIDC_MANAGEMENT_API_AUDIENCE: ${OIDC_MANAGEMENT_API_AUDIENCE}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["node", "/app/main.js", "--migration-run"]
+    networks:
+      - internal
+
   api:
     image: ghcr.io/betterandbetterii/daytona-api:latest
     restart: unless-stopped
@@ -145,9 +185,14 @@ services:
       OIDC_MANAGEMENT_API_CLIENT_SECRET: ${OIDC_MANAGEMENT_API_CLIENT_SECRET}
       OIDC_MANAGEMENT_API_AUDIENCE: ${OIDC_MANAGEMENT_API_AUDIENCE}
     depends_on:
-      - db
-      - redis
-      - keycloak
+      api-migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     ports:
       - "3001:3000"
     networks:
