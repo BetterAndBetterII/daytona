@@ -1,3 +1,42 @@
+# 统一与自动转换行尾，避免 Windows/Unix 差异导致脚本执行失败
+
+# 缺省：启用文本规范化（仓库内保存为 LF），不同平台按需要转换
+* text=auto
+
+# 强制关键脚本/配置在工作区也用 LF（避免 /bin/sh^M 等问题）
+*.sh      text eol=lf
+*.bash    text eol=lf
+*.zsh     text eol=lf
+Dockerfile text eol=lf
+apps/*/Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.env     text eol=lf
+
+# 源代码建议统一 LF（跨平台稳定）
+*.go      text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.js      text eol=lf
+*.mjs     text eol=lf
+*.css     text eol=lf
+*.scss    text eol=lf
+*.md      text eol=lf
+
+# Windows 脚本保留 CRLF（在 Windows 上体验更好）
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# 二进制文件不要做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.mp4 binary
 
 libs/api-client/** linguist-generated=true
 libs/api-client-go/** linguist-generated=true

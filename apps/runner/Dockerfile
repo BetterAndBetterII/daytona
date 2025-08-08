@@ -38,10 +38,10 @@ RUN apk add --no-cache ca-certificates bash git su-exec \
 
 # Copy runner binary and entrypoint script
 COPY --from=builder /src/dist/apps/runner-amd64 /app/runner
-COPY runner-entrypoint.sh /app/runner-entrypoint.sh
+COPY --from=builder /src/apps/runner/runner-entrypoint.sh /app/runner-entrypoint.sh
 
-# Make entrypoint script executable
-RUN chmod +x /app/runner-entrypoint.sh
+# Normalize line endings and make entrypoint script executable
+RUN sed -i 's/\r$//' /app/runner-entrypoint.sh && chmod +x /app/runner-entrypoint.sh
 
 # Runner listens on API_PORT (default 8080)
 ENV API_PORT=8080
