@@ -35,8 +35,12 @@ done
 echo "✅ 数据库已就绪"
 
 echo "🔧 执行数据库迁移..."
-# 在 API 容器中执行迁移
-docker compose exec -T api npm run migration:run
+# 在 API 容器中使用 main.ts 的迁移参数执行迁移
+# 首先确保API服务完全启动
+echo "⏳ 等待API服务启动完成..."
+sleep 10
+
+docker compose exec -T api node /app/main.js --migration-run
 
 if [ $? -eq 0 ]; then
     echo "✅ 数据库迁移执行成功"
