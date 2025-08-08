@@ -267,24 +267,37 @@ create_env_file() {
         return 0
     fi
     
+    # 复制环境配置模板
     cp .env.example .env || error_exit "无法复制.env.example到.env"
     
     # 生成随机密码
-    local db_password redis_password minio_password
+    local db_password minio_password api_token proxy_key
     db_password=$(openssl rand -base64 32 2>/dev/null || echo "daytona_db_pass_$(date +%s)")
-    redis_password=$(openssl rand -base64 32 2>/dev/null || echo "daytona_redis_pass_$(date +%s)")
     minio_password=$(openssl rand -base64 32 2>/dev/null || echo "daytona_minio_pass_$(date +%s)")
+    api_token=$(openssl rand -base64 32 2>/dev/null | tr -d '/+' | cut -c1-32 || echo "daytona_api_token_$(date +%s)")
+    proxy_key=$(openssl rand -base64 32 2>/dev/null | tr -d '/+' | cut -c1-32 || echo "daytona_proxy_key_$(date +%s)")
     
-    # 更新环境变量
-    sed -i.bak "s/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${db_password}/" .env
-    sed -i.bak "s/MINIO_ROOT_PASSWORD=.*/MINIO_ROOT_PASSWORD=${minio_password}/" .env
-    sed -i.bak "s/API_TOKEN=.*/API_TOKEN=daytona_api_token_$(date +%s)/" .env
-    sed -i.bak "s/PROXY_API_KEY=.*/PROXY_API_KEY=daytona_proxy_key_$(date +%s)/" .env
+    # 生成随机MinIO用户名
+    local minio_user="minio_$(openssl rand -hex 4 2>/dev/null || echo "$(date +%s | tail -c 5)")"
+    
+    # 更新关键安全配置
+    sed -i.bak "s/DB_PASSWORD=daytona_db_pass_123/DB_PASSWORD=${db_password}/" .env
+    sed -i.bak "s/MINIO_ROOT_PASSWORD=daytona_minio_pass_123/MINIO_ROOT_PASSWORD=${minio_password}/" .env
+    sed -i.bak "s/MINIO_ROOT_USER=minioadmin/MINIO_ROOT_USER=${minio_user}/" .env
+    sed -i.bak "s/API_TOKEN=daytona_api_token_123/API_TOKEN=${api_token}/" .env
+    sed -i.bak "s/PROXY_API_KEY=daytona_proxy_key_123/PROXY_API_KEY=${proxy_key}/" .env
     
     # 删除备份文件
     rm -f .env.bak
     
     log_success "环境配置文件创建完成"
+    log_info "已生成随机密码，详细信息如下："
+    log_info "  数据库密码: ${db_password}"
+    log_info "  MinIO用户名: ${minio_user}"
+    log_info "  MinIO密码: ${minio_password}"
+    log_info "  API令牌: ${api_token}"
+    log_info "  代理密钥: ${proxy_key}"
+    log_warn "请妥善保存这些信息，建议将.env文件备份到安全位置"
 }
 
 # 启动Daytona服务
@@ -332,13 +345,26 @@ show_access_info() {
     echo "📋 服务访问信息:"
     echo "=========================================="
     echo "🌐 Dashboard:  http://localhost:8080"
-    echo "🔌 API:         http://localhost:3000"
+    echo "🔌 API:         http://localhost:3001"
     echo "🏃 Runner:      http://localhost:3003"
     echo "🔀 Proxy:       http://localhost:4000"
     echo "📊 Registry UI: http://localhost:8082"
     echo "💾 MinIO:       http://localhost:9001"
     echo "=========================================="
     echo
+    
+    # 显示MinIO访问凭据
+    if [[ -f "../.env" ]]; then
+        echo "🔑 MinIO访问凭据:"
+        local minio_user minio_password
+        minio_user=$(grep "^MINIO_ROOT_USER=" ../.env | cut -d'=' -f2-)
+        minio_password=$(grep "^MINIO_ROOT_PASSWORD=" ../.env | cut -d'=' -f2-)
+        echo "  用户名: ${minio_user}"
+        echo "  密码: ${minio_password}"
+        echo "=========================================="
+        echo
+    fi
+    
     echo "📝 管理命令:"
     echo "  查看状态: docker compose ps"
     echo "  查看日志: docker compose logs [service]"
@@ -348,6 +374,8 @@ show_access_info() {
     echo "  恢复数据: ./scripts/restore.sh <backup_dir>"
     echo "=========================================="
     echo
+    echo "📋 安全配置文件位置: ../.env"
+    echo "⚠️  请妥善保存.env文件，包含所有服务的重要凭据"
     echo "⚠️  首次启动可能需要几分钟时间下载镜像"
     echo "🔧 请使用 'docker compose logs' 查看详细日志"
     echo

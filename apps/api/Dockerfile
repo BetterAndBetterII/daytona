@@ -26,7 +26,10 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 
 # Use the generated package.json from the built output to install only runtime deps
 COPY --from=builder /workspace/dist/apps/api/package.json ./package.json
-RUN npm install --omit=dev --no-audit --no-fund
+
+# Install runtime dependencies and ensure pg driver is explicitly installed
+RUN npm install --omit=dev --no-audit --no-fund && \
+    npm install --omit=dev --no-audit --no-fund pg@^8.13.3
 
 # ---------- Runtime: minimal image ----------
 FROM docker.io/node:lts-alpine AS runtime
