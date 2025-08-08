@@ -92,10 +92,12 @@ jobs:
       - name: Define tags
         id: vars
         run: |
-          REPO=ghcr.io/${{ github.repository_owner }}/daytona
-          echo "repo=${REPO}" >> $GITHUB_OUTPUT
-          SHORT_SHA=${GITHUB_SHA::7}
-          echo "sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          OWNER_RAW="${{ github.repository_owner }}"
+          OWNER_LC="$(echo "${OWNER_RAW}" | tr '[:upper:]' '[:lower:]')"
+          REPO="ghcr.io/${OWNER_LC}/daytona"
+          echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push API
         uses: docker/build-push-action@v6
