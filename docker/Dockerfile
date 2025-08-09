@@ -25,7 +25,7 @@ ENV VERSION=${VERSION}
 RUN yarn && \
   SKIP_COMPUTER_USE_BUILD=true yarn build:production-skip-computer-use --nxBail=true
 
-RUN mkdir -p /etc/docker && echo '{"iptables": false, "ip-forward": false, "ip-masq": false, "userland-proxy": false,"insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json
+RUN mkdir -p /etc/docker && echo '{"iptables": true, "ip-forward": true, "ip-masq": true, "userland-proxy": false, "insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json
 
 ENV PORT=3000
 
@@ -142,7 +142,7 @@ COPY --from=daytona /daytona/dist/apps/runner daytona-runner
 
 RUN chmod +x daytona-runner
 
-RUN mkdir -p /etc/docker && echo '{"iptables": false, "ip-forward": false, "ip-masq": false, "userland-proxy": false,"insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json
+RUN mkdir -p /etc/docker && echo '{"iptables": true, "ip-forward": true, "ip-masq": true, "userland-proxy": false, "insecure-registries": ["localhost:6000"]}' > /etc/docker/daemon.json
 
 ENV ENVIRONMENT=development
 
