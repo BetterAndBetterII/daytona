@@ -1,7 +1,10 @@
 name: daytona
+x-service-defaults: &service-defaults
+  restart: unless-stopped
 services:
   api:
     image: daytonaio/daytona-api:0.2.4
+    <<: *service-defaults
     privileged: true
     ports:
       - 3000:3000
@@ -12,15 +15,18 @@ services:
       - 5100:5100
   proxy:
     image: daytonaio/daytona-proxy:0.2.13
+    <<: *service-defaults
     network_mode: service:api
 
   runner:
     image: daytonaio/daytona-runner:0.2.3
+    <<: *service-defaults
     privileged: true
     network_mode: service:api
 
   dex:
     image: dexidp/dex:v2.42.0
+    <<: *service-defaults
     volumes:
       - ./dex/config.yaml:/etc/dex/config.yaml
     command: ['dex', 'serve', '/etc/dex/config.yaml']
@@ -28,6 +34,7 @@ services:
 
   db:
     image: postgres:11.9
+    <<: *service-defaults
     environment:
       - POSTGRES_PASSWORD=pass
       - POSTGRES_USER=user
@@ -35,6 +42,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:9.2.0
+    <<: *service-defaults
     entrypoint: ['sh', '-c', 'chmod 600 /pgpass && exec /entrypoint.sh']
     environment:
       PGADMIN_DEFAULT_EMAIL: dev@daytona.io
@@ -52,10 +60,11 @@ services:
 
   redis:
     image: redis:latest
+    <<: *service-defaults
 
   registry-ui:
     image: joxit/docker-registry-ui:main
-    restart: always
+    <<: *service-defaults
     environment:
       - SINGLE_REGISTRY=true
       - REGISTRY_TITLE=Docker Registry UI
@@ -71,7 +80,7 @@ services:
     network_mode: service:api
   registry:
     image: registry:2.8.2
-    restart: always
+    <<: *service-defaults
     environment:
       REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: '[http://registry-ui.example.com]'
       REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods: '[HEAD,GET,OPTIONS,DELETE]'
@@ -86,9 +95,11 @@ services:
 
   maildev:
     image: maildev/maildev
+    <<: *service-defaults
 
   minio:
     image: minio/minio:latest
+    <<: *service-defaults
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
@@ -99,6 +110,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.67.0
+    <<: *service-defaults
 
 volumes:
   registry: {}
