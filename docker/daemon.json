@@ -1,0 +1,7 @@
+{
+  "iptables": true,
+  "ip-forward": true,
+  "ip-masq": true,
+  "userland-proxy": false,
+  "insecure-registries": ["localhost:6000"]
+}

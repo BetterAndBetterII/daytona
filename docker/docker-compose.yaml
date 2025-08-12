@@ -1,11 +1,20 @@
 name: daytona
 x-service-defaults: &service-defaults
   restart: unless-stopped
+
 services:
-  api:
-    image: daytonaio/daytona-api:0.2.4
+  netns:
+    image: alpine:3.18
     <<: *service-defaults
     privileged: true
+    command: ['sh','-c','sleep infinity']
+    dns:
+      - 10.20.220.50
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    dns_search:
+      - CUHK.EDU.CN
     ports:
       - 3000:3000
       - 3003:3003
@@ -13,6 +22,16 @@ services:
       - 6000:6000
       - 5556:5556
       - 5100:5100
+      - 6379:6379
+      - 6080:80
+      - 8080-8083:8080-8083
+  api:
+    image: daytonaio/daytona-api:0.2.4
+    <<: *service-defaults
+    privileged: true
+    network_mode: service:netns
+    volumes:
+      - ./daemon.json:/etc/docker/daemon.json:ro
     environment:
       PORT: ${PORT:-3000}
       # Database
@@ -34,7 +53,7 @@ services:
       OIDC_MANAGEMENT_API_AUDIENCE: ${OIDC_MANAGEMENT_API_AUDIENCE:-}
       # Defaults and UI
       DEFAULT_SNAPSHOT: ${DEFAULT_SNAPSHOT:-ubuntu:22.04}
-      DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:3000/dashboard}
+      DASHBOARD_URL: ${DASHBOARD_URL:-https://sandbox.betterspace.top/dashboard}
       # Analytics
       POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-https://d18ag4dodbta3l.cloudfront.net}
@@ -88,12 +107,13 @@ services:
       DEFAULT_RUNNER_CAPACITY: ${DEFAULT_RUNNER_CAPACITY:-100}
       DEFAULT_RUNNER_REGION: ${DEFAULT_RUNNER_REGION:-us}
       DEFAULT_RUNNER_CLASS: ${DEFAULT_RUNNER_CLASS:-small}
+
   proxy:
     image: daytonaio/daytona-proxy:0.2.13
     <<: *service-defaults
-    network_mode: service:api
+    network_mode: service:netns
     environment:
-      DAYTONA_API_URL: ${DAYTONA_API_URL:-http://localhost:3000/api}
+      DAYTONA_API_URL: ${DAYTONA_API_URL:-https://sandbox.betterspace.top/api}
       PROXY_PORT: ${PROXY_PORT:-4000}
       PROXY_DOMAIN: ${PROXY_DOMAIN:-proxy.localhost:4000}
       PROXY_API_KEY: ${PROXY_API_KEY:-super_secret_key}
@@ -109,7 +129,9 @@ services:
     image: daytonaio/daytona-runner:0.2.3
     <<: *service-defaults
     privileged: true
-    network_mode: service:api
+    network_mode: service:netns
+    volumes:
+      - ./daemon.json:/etc/docker/daemon.json:ro
     environment:
       ENVIRONMENT: ${RUNNER_ENVIRONMENT:-development}
       API_PORT: ${RUNNER_API_PORT:-3003}
@@ -129,11 +151,13 @@ services:
     volumes:
       - ./dex/config.yaml:/etc/dex/config.yaml
     command: ['dex', 'serve', '/etc/dex/config.yaml']
-    network_mode: service:api
+    network_mode: service:netns
 
   db:
     image: postgres:11.9
     <<: *service-defaults
+    volumes:
+      - db_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_PASSWORD=pass
       - POSTGRES_USER=user
@@ -160,6 +184,8 @@ services:
   redis:
     image: redis:latest
     <<: *service-defaults
+    volumes:
+      - redis_data:/data
 
   registry-ui:
     image: joxit/docker-registry-ui:main
@@ -176,7 +202,7 @@ services:
       - TAGLIST_PAGE_SIZE=100
       - REGISTRY_SECURED=false
       - CATALOG_ELEMENTS_LIMIT=1000
-    network_mode: service:api
+    network_mode: service:netns
   registry:
     image: registry:2.8.2
     <<: *service-defaults
@@ -190,7 +216,7 @@ services:
       REGISTRY_HTTP_ADDR: localhost:6000
     volumes:
       - registry:/var/lib/registry
-    network_mode: service:api
+    network_mode: service:netns
 
   maildev:
     image: maildev/maildev
@@ -212,5 +238,11 @@ services:
     <<: *service-defaults
 
 volumes:
-  registry: {}
-  minio_data: {}
+  registry:
+    name: registry
+  minio_data:
+    name: minio_data
+  db_data:
+    name: db_data
+  redis_data:
+    name: redis_data
