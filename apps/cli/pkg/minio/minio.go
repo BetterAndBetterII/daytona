@@ -84,49 +84,19 @@ func (c *Client) ListObjects(ctx context.Context, prefix string) ([]string, erro
 }
 
 func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, existingObjects map[string]bool) ([]string, error) {
-	tarFile, err := os.Create(CONTEXT_TAR_FILE_NAME)
+	// Write outside the context tree so `snapshot create -c .` cannot pack the
+	// growing output tar (archive/tar: write too long).
+	tarFile, err := os.CreateTemp("", "daytona-context-*.tar")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tar file: %w", err)
 	}
+	defer os.Remove(tarFile.Name())
 	defer tarFile.Close()
 
 	tw := tar.NewWriter(tarFile)
 	defer tw.Close()
 
-	err = filepath.Walk(dirPath, func(file string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		header, err := tar.FileInfoHeader(fi, fi.Name())
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(filepath.Dir(dirPath), file)
-		if err != nil {
-			return err
-		}
-		header.Name = relPath
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		// Write file contents if regular file
-		if fi.Mode().IsRegular() {
-			f, err := os.Open(file)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-
-			_, err = io.Copy(tw, f)
-			return err
-		}
-		return nil
-	})
-
+	err = writeDirectoryToTar(tw, dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process directory: %w", err)
 	}
@@ -158,15 +128,61 @@ func (c *Client) ProcessDirectory(ctx context.Context, dirPath, orgID string, ex
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload tar: %w", err)
 		}
-
-		if err := os.Remove(CONTEXT_TAR_FILE_NAME); err != nil {
-			return nil, fmt.Errorf("failed to remove tar file: %w", err)
-		}
 	} else {
 		fmt.Printf("Directory %s with hash %s already exists in storage\n", dirPath, hash)
 	}
 
 	return []string{hash}, nil
+}
+
+// writeDirectoryToTar walks dirPath and writes entries to tw.
+// Used by snapshot create when packing a Docker build context.
+func writeDirectoryToTar(tw *tar.Writer, dirPath string) error {
+	return filepath.Walk(dirPath, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if fi.Name() == CONTEXT_TAR_FILE_NAME {
+			return nil
+		}
+
+		var link string
+		if fi.Mode()&os.ModeSymlink != 0 {
+			link, err = os.Readlink(file)
+			if err != nil {
+				return err
+			}
+		}
+
+		header, err := tar.FileInfoHeader(fi, link)
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(filepath.Dir(dirPath), file)
+		if err != nil {
+			return err
+		}
+		header.Name = relPath
+
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+
+		if !fi.Mode().IsRegular() {
+			return nil
+		}
+
+		f, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		_, err = io.Copy(tw, f)
+		return err
+	})
 }
 
 func (c *Client) ProcessFile(ctx context.Context, filePath, orgID string, existingObjects map[string]bool) (string, error) {
